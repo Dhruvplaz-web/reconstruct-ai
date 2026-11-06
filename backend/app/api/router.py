@@ -177,3 +177,4 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
     # Server-side ABAC Policy Application
     filtered_workspace = ABACFilter.filter_workspace(workspace, role=role)
     return filtered_workspace
+

@@ -92,3 +92,4 @@ class GitMiner:
             substantive_commits.append(c)
 
         return substantive_commits
+

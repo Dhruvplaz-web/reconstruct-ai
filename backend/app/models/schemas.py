@@ -107,3 +107,4 @@ class HandoverWorkspace(BaseModel):
     contradictions: List[ContradictionAlert]
     kanban_tasks: List[KanbanTask]
     stats: Dict[str, Any] = Field(default_factory=dict)
+

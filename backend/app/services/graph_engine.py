@@ -117,3 +117,4 @@ class TemporalGraphEngine:
             "nodes": nodes,
             "edges": edges
         }
+

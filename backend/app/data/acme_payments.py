@@ -349,3 +349,4 @@ SYNTHETIC_KANBAN_TASKS: List[KanbanTask] = [
         completed=False
     )
 ]
+

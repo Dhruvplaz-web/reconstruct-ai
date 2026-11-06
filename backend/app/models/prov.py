@@ -41,3 +41,4 @@ class ProvBundle(BaseModel):
     activities: List[ProvActivity] = Field(default_factory=list)
     agents: List[ProvAgent] = Field(default_factory=list)
     relations: List[ProvRelation] = Field(default_factory=list)
+

@@ -123,3 +123,4 @@ class NLIRadar:
                         )
                         alerts.append(alert)
         return alerts
+
