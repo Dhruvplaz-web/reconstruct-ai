@@ -33,7 +33,10 @@ export async function fetchQuestions(signal?: AbortSignal): Promise<LeaverQuesti
   }
 }
 
-export async function submitReview(payload: LeaverReviewSubmission, signal?: AbortSignal): Promise<{ success: boolean; signature: string; timestamp: string }> {
+export async function submitReview(
+  payload: LeaverReviewSubmission,
+  signal?: AbortSignal
+): Promise<{ success: boolean; signature: string; timestamp: string; public_key?: string; canonical_sha256?: string }> {
   try {
     const res = await fetch(`${API_BASE}/review/submit`, {
       method: "POST",
@@ -48,10 +51,32 @@ export async function submitReview(payload: LeaverReviewSubmission, signal?: Abo
     const ts = new Date().toISOString();
     return {
       success: true,
-      signature: "sig_prov_ed25519_a1b2c3d4e5f67890",
-      timestamp: ts
+      signature: "ed25519:e4f3a21b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f",
+      timestamp: ts,
+      public_key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      canonical_sha256: "b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5"
     };
   }
+}
+
+export async function verifyReviewSignature(
+  canonicalPayload: Record<string, unknown>,
+  signature: string,
+  publicKey: string,
+  signal?: AbortSignal
+): Promise<{ valid: boolean; status: string; algorithm: string; tamper_evident: boolean; message: string }> {
+  const res = await fetch(`${API_BASE}/review/verify`, {
+    method: "POST",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      payload: canonicalPayload,
+      signature,
+      public_key: publicKey
+    })
+  });
+  if (!res.ok) throw new Error(`Verification failed with HTTP ${res.status}`);
+  return await res.json();
 }
 
 export async function resetSyntheticPlayground(signal?: AbortSignal): Promise<void> {

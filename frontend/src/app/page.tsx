@@ -214,6 +214,7 @@ export default function Home() {
         questions={questions}
         onSubmitReview={handleSubmitReview}
         isSubmitting={isSubmittingReview}
+        leaverName={workspace?.leaver_name}
       />
     </div>
   );

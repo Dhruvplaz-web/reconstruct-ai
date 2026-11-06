@@ -36,6 +36,7 @@ from ..services.git_miner import GitMiner
 from ..services.nli_radar import NLIRadar
 from ..services.extraction import KnowledgeExtractor
 from ..services.discussion_miner import DiscussionMiner
+from ..services.crypto_signer import CryptoSigner
 
 router = APIRouter(prefix="/api")
 
@@ -242,14 +243,21 @@ def get_leaver_questions():
 def submit_leaver_review(submission: LeaverReviewSubmission):
     """
     Submits the departing developer's answers, records timestamp,
-    computes a cryptographic approval hash, and resolves flagged contradictions.
+    computes an RFC 8032 Ed25519 asymmetric cryptographic digital signature,
+    and resolves flagged contradictions.
     """
     timestamp = datetime.now(timezone.utc).isoformat()
-    raw_payload = f"{submission.approved_by}:{timestamp}:{str(submission.responses)}"
-    sig_hash = hashlib.sha256(raw_payload.encode()).hexdigest()
+    sign_result = CryptoSigner.sign_review_submission(
+        approved_by=submission.approved_by,
+        responses=submission.responses,
+        timestamp=timestamp,
+        additional_notes=submission.additional_notes
+    )
 
     submission.approved_at = timestamp
-    submission.digital_signature = f"sig_prov_ed25519_{sig_hash[:16]}"
+    submission.digital_signature = sign_result["signature"]
+    submission.public_key = sign_result["public_key"]
+    submission.canonical_sha256 = sign_result["canonical_sha256"]
 
     APP_STATE["leaver_approved"] = True
     APP_STATE["approval_submission"] = submission
@@ -267,11 +275,31 @@ def submit_leaver_review(submission: LeaverReviewSubmission):
 
     return {
         "success": True,
-        "message": "60-Second Leaver Review approved and cryptographically stamped.",
+        "message": "60-Second Leaver Review approved and cryptographically stamped via RFC 8032 Ed25519.",
         "approved_by": submission.approved_by,
         "timestamp": timestamp,
-        "signature": submission.digital_signature
+        "signature": submission.digital_signature,
+        "public_key": submission.public_key,
+        "algorithm": "Ed25519 (RFC 8032)",
+        "canonical_sha256": submission.canonical_sha256
     }
+
+class VerificationRequest(BaseModel):
+    payload: Dict[str, Any] = Field(..., description="Canonical review data")
+    signature: str = Field(..., description="Ed25519 digital signature string")
+    public_key: str = Field(..., description="Signer public key hex")
+
+@router.post("/review/verify")
+def verify_leaver_review(req: VerificationRequest):
+    """
+    Cryptographically verifies an Ed25519 digital signature (RFC 8032).
+    Verifies that the handover approval payload has not been tampered with or altered.
+    """
+    return CryptoSigner.verify_signature(
+        payload=req.payload,
+        signature_str=req.signature,
+        public_key_hex=req.public_key
+    )
 
 @router.get("/handover/workspace", response_model=HandoverWorkspace)
 def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):

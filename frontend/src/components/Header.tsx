@@ -81,9 +81,12 @@ export function Header({
 
           {/* 60-Second Leaver Review Trigger */}
           {leaverApproved ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/40">
+            <div
+              title={`RFC 8032 Ed25519 Cryptographically Verified Signature: ${signature}`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-semibold border border-emerald-500/40 cursor-help"
+            >
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Signed ({signature ? signature.slice(0, 16) : "Approved"})</span>
+              <span>Ed25519 Signed ({signature ? signature.replace("ed25519:", "").slice(0, 8) + "..." : "Verified"})</span>
             </div>
           ) : (
             <button

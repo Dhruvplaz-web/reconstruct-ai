@@ -87,6 +87,8 @@ export interface LeaverReviewSubmission {
   approved_by: string;
   approved_at?: string;
   digital_signature?: string;
+  public_key?: string;
+  canonical_sha256?: string;
 }
 
 export interface KanbanTask {

@@ -82,6 +82,8 @@ class LeaverReviewSubmission(BaseModel):
     approved_by: str
     approved_at: Optional[str] = None
     digital_signature: Optional[str] = None
+    public_key: Optional[str] = None
+    canonical_sha256: Optional[str] = None
 
 class KanbanTask(BaseModel):
     id: str

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { X, CheckCircle2, ShieldCheck, Loader2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, CheckCircle2, ShieldCheck, Loader2, KeyRound } from "lucide-react";
 import { LeaverQuestion, LeaverReviewSubmission } from "@/types";
 
 interface LeaverReviewModalProps {
@@ -10,6 +10,7 @@ interface LeaverReviewModalProps {
   questions: LeaverQuestion[];
   onSubmitReview: (submission: LeaverReviewSubmission) => Promise<void>;
   isSubmitting: boolean;
+  leaverName?: string;
 }
 
 export function LeaverReviewModal({
@@ -17,7 +18,8 @@ export function LeaverReviewModal({
   onClose,
   questions,
   onSubmitReview,
-  isSubmitting
+  isSubmitting,
+  leaverName = "Alice Vance (Lead Architect)"
 }: LeaverReviewModalProps) {
   // Pre-fill with recommended/suggested answers for frictionless 60-second experience
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>(() => {
@@ -27,6 +29,14 @@ export function LeaverReviewModal({
     });
     return initial;
   });
+
+  useEffect(() => {
+    const initial: Record<string, string> = {};
+    questions.forEach((q) => {
+      initial[q.id] = q.suggested_answer || q.options[0];
+    });
+    setSelectedAnswers(initial);
+  }, [questions]);
 
   const [notes, setNotes] = useState<string>("All production edge-cases and rollback decisions verified.");
 
@@ -41,7 +51,7 @@ export function LeaverReviewModal({
     await onSubmitReview({
       responses: selectedAnswers,
       additional_notes: notes,
-      approved_by: "Alice Vance (Lead Architect)"
+      approved_by: leaverName
     });
   };
 
@@ -55,9 +65,15 @@ export function LeaverReviewModal({
               <ShieldCheck className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">60-Second Leaver Review Gate</h2>
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center gap-2">
+                60-Second Leaver Review Gate
+                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <KeyRound className="w-3 h-3" />
+                  RFC 8032 Ed25519
+                </span>
+              </h2>
               <p className="text-[11px] text-slate-400">
-                Alice Vance (Lead Architect) &bull; Confirm 3 detected knowledge gaps
+                {leaverName} &bull; Confirm detected operational knowledge gaps
               </p>
             </div>
           </div>
@@ -72,9 +88,9 @@ export function LeaverReviewModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
           <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900">
-            <p className="font-semibold text-xs mb-0.5">Zero-Friction Handover Philosophy:</p>
+            <p className="font-semibold text-xs mb-0.5">Cryptographic Non-Repudiation Handover:</p>
             <p className="text-[11px] leading-relaxed text-blue-800">
-              Rather than writing a manual 20-page wiki, our Git Blame Miner and DeBERTa-v3 Contradiction Radar identified the 3 single-author risk areas below. Simply confirm or adjust your answers to finalize the handover.
+              Your responses will be canonically serialized (RFC 8785) and digitally signed using an asymmetric Ed25519 keypair. This creates a permanent, tamper-evident audit record registered in W3C PROV-DM provenance logs.
             </p>
           </div>
 
@@ -133,7 +149,7 @@ export function LeaverReviewModal({
           {/* Submit Action */}
           <div className="pt-2 flex items-center justify-between border-t border-slate-200">
             <span className="text-[11px] text-slate-500">
-              Signs with: <strong className="text-slate-800">Alice Vance (Lead Architect)</strong>
+              Signs with: <strong className="text-slate-800">{leaverName}</strong>
             </span>
 
             <div className="flex items-center gap-2">

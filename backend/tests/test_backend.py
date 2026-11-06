@@ -29,8 +29,10 @@ from backend.app.api.router import (
     get_handover_workspace,
     ingest_live_repository,
     ingest_discussions,
+    verify_leaver_review,
     LiveRepoRequest,
-    DiscussionIngestRequest
+    DiscussionIngestRequest,
+    VerificationRequest
 )
 from backend.app.models.schemas import LeaverReviewSubmission
 from backend.app.data.acme_payments import (
@@ -115,10 +117,51 @@ def test_leaver_review_submission():
     )
     res = submit_leaver_review(sub_payload)
     assert res["success"] is True
-    assert "sig_prov_ed25519" in res["signature"]
+    assert "ed25519:" in res["signature"]
+    assert res["algorithm"] == "Ed25519 (RFC 8032)"
+    assert len(res["public_key"]) == 64  # 32-byte raw Ed25519 public key as hex
 
     contras = get_contradictions()
     assert contras[0].status == "RESOLVED_BY_LEAVER"
+
+def test_ed25519_tamper_evident_verification():
+    # 1. Sign a review submission
+    questions = get_leaver_questions()
+    original_responses = {q.id: q.suggested_answer for q in questions}
+    sub_payload = LeaverReviewSubmission(
+        responses=original_responses,
+        approved_by="Alice Vance (Lead Architect)",
+        additional_notes="Production ledger verified."
+    )
+    submit_res = submit_leaver_review(sub_payload)
+    
+    canonical_data = {
+        "approved_by": "Alice Vance (Lead Architect)",
+        "timestamp": submit_res["timestamp"],
+        "responses": original_responses,
+        "additional_notes": "Production ledger verified."
+    }
+    
+    # 2. Verify with valid unmodified payload -> Mathematical verification succeeds
+    valid_res = verify_leaver_review(VerificationRequest(
+        payload=canonical_data,
+        signature=submit_res["signature"],
+        public_key=submit_res["public_key"]
+    ))
+    assert valid_res["valid"] is True
+    assert valid_res["status"] == "CRYPTOGRAPHICALLY_VERIFIED"
+    assert valid_res["tamper_evident"] is True
+
+    # 3. Verify with tampered payload -> Mathematical verification FAILS (tamper-evident proof)
+    tampered_data = dict(canonical_data)
+    tampered_data["approved_by"] = "Mallory (Attacker)"
+    invalid_res = verify_leaver_review(VerificationRequest(
+        payload=tampered_data,
+        signature=submit_res["signature"],
+        public_key=submit_res["public_key"]
+    ))
+    assert invalid_res["valid"] is False
+    assert invalid_res["status"] == "SIGNATURE_MISMATCH"
 
 def test_w3c_prov_export():
     prov_res = export_w3c_prov()
