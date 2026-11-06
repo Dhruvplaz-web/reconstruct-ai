@@ -311,3 +311,4 @@ export function IngestModal({ isOpen, onClose, onIngest, isIngesting }: IngestMo
     </div>
   );
 }
+

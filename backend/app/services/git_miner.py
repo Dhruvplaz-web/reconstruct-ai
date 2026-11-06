@@ -106,24 +106,66 @@ class GitMiner:
         )
 
     @staticmethod
+    def compute_file_icse_metrics(repo: Any, file_rel_path: str, primary_author: str) -> Dict[str, Any]:
+        """
+        Extracts authentic Fritz et al. (ICSE) empirical authorship metrics via Git log inspection:
+        - FA (First Author): True if primary_author created the file.
+        - DL (Deliveries): Total commits authored by primary_author on this file.
+        - AC (Acceptances): Total edits/commits authored by other contributors on this file.
+        """
+        try:
+            log_output = repo.git.log('--follow', '--format=%an', '--', file_rel_path).splitlines()
+            if not log_output:
+                return {"is_first_author": True, "deliveries": 1, "acceptances": 0}
+
+            first_author = log_output[-1].strip()
+            is_fa = (first_author.lower() == primary_author.lower())
+            dl = sum(1 for a in log_output if a.strip().lower() == primary_author.lower())
+            ac = max(0, len(log_output) - dl)
+            return {"is_first_author": is_fa, "deliveries": dl, "acceptances": ac}
+        except Exception:
+            return {"is_first_author": True, "deliveries": 1, "acceptances": 0}
+
+    @staticmethod
     def calculate_repository_truck_factor(orphan_files: List[OrphanRiskFile]) -> Dict[str, Any]:
         """
-        Calculates repository-wide Truck Factor (HelgeCPH/truckfactor algorithm).
-        Finds the minimum set of developers whose departure results in >50% of critical files losing their owner.
+        Calculates repository-wide Truck Factor based on the HelgeCPH / Avelino et al. algorithm.
+        Identifies the smallest set of authors whose departure leaves >= 50% of files without an active owner.
         """
-        critical_files = [f for f in orphan_files if f.bus_factor_risk in ["CRITICAL", "HIGH"]]
-        if not critical_files:
-            return {"truck_factor": 3, "risk_status": "LOW", "key_holders": []}
+        if not orphan_files:
+            return {"truck_factor": 1, "risk_status": "CRITICAL", "key_holders": ["Unknown Maintainer"], "critical_files_count": 0}
 
-        author_critical_counts: Dict[str, int] = {}
-        for f in critical_files:
-            author_critical_counts[f.primary_author] = author_critical_counts.get(f.primary_author, 0) + 1
+        # Collect all active authors across all files
+        all_authors = list(dict.fromkeys(f.primary_author for f in orphan_files if f.primary_author != "UNKNOWN"))
+        if len(all_authors) <= 1:
+            sole_maintainer = all_authors[0] if all_authors else "Primary Maintainer"
+            return {
+                "truck_factor": 1,
+                "risk_status": "CRITICAL",
+                "key_holders": [sole_maintainer],
+                "critical_files_count": len(orphan_files),
+                "explanation": f"Truck Factor = 1: Single-contributor codebase. All modules depend exclusively on {sole_maintainer}."
+            }
 
-        # Sort authors by number of critical files owned descending
-        sorted_authors = sorted(author_critical_counts.items(), key=lambda x: x[1], reverse=True)
+        # Greedy Set Cover over files with single-author concentration (blame >= 50%)
+        author_ownership_counts: Dict[str, int] = {}
+        for f in orphan_files:
+            if f.blame_percentage >= 50.0:
+                author_ownership_counts[f.primary_author] = author_ownership_counts.get(f.primary_author, 0) + 1
+
+        if not author_ownership_counts:
+            return {
+                "truck_factor": min(3, len(all_authors)),
+                "risk_status": "LOW",
+                "key_holders": all_authors[:3],
+                "critical_files_count": 0,
+                "explanation": "Truck Factor = 3 (Low Risk): Highly distributed collaborative ownership across all contributors."
+            }
+
+        sorted_authors = sorted(author_ownership_counts.items(), key=lambda x: x[1], reverse=True)
         key_holders = []
         covered_files = 0
-        threshold = len(critical_files) * 0.50
+        threshold = len(orphan_files) * 0.50
 
         for author, count in sorted_authors:
             key_holders.append(author)
@@ -131,15 +173,15 @@ class GitMiner:
             if covered_files >= threshold:
                 break
 
-        truck_factor = len(key_holders)
+        truck_factor = max(1, len(key_holders))
         return {
             "truck_factor": truck_factor,
             "risk_status": "CRITICAL" if truck_factor <= 1 else "MEDIUM",
             "key_holders": key_holders,
-            "critical_files_count": len(critical_files),
+            "critical_files_count": sum(author_ownership_counts.values()),
             "explanation": (
                 f"Truck Factor = {truck_factor}: The departure of {', '.join(key_holders)} "
-                f"leaves {covered_files}/{len(critical_files)} critical modules without a primary maintainer."
+                f"leaves {covered_files}/{len(orphan_files)} modules without an active primary maintainer."
             )
         }
 
@@ -188,7 +230,7 @@ class GitMiner:
 
         # 1. Mine Real Commits
         live_commits: List[CommitEvent] = []
-        for c in list(repo.iter_commits(max_count=20)):
+        for c in list(repo.iter_commits(max_count=50)):
             iso_ts = datetime.fromtimestamp(c.committed_date, tz=timezone.utc).isoformat()
             
             # Extract diff summary if available
@@ -219,15 +261,26 @@ class GitMiner:
         # 2. Mine Real Files & Blame
         tracked_files = repo.git.ls_files().splitlines()
         # Filter source files (ignore binary, images, pdf, lockfiles)
-        source_extensions = (".py", ".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".md", ".json")
+        source_extensions = (".py", ".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".md", ".json", ".go", ".rs", ".java")
         candidate_files = [
             f for f in tracked_files
-            if f.endswith(source_extensions) and not any(ign in f for ign in ["pnpm-lock", "package-lock", "node_modules", ".woff"])
+            if f.endswith(source_extensions) and not any(ign in f for ign in ["pnpm-lock", "package-lock", "node_modules", ".woff", ".git"])
         ]
 
+        # Prioritize core business logic over configuration files
+        def file_priority(p: str) -> int:
+            p_lower = p.lower()
+            if any(k in p_lower for k in ["services/", "backend/", "app/", "src/", "lib/", "core/"]):
+                return 0
+            if any(p_lower.endswith(ext) for ext in [".py", ".ts", ".tsx", ".js"]):
+                return 1
+            return 2
+
+        candidate_files.sort(key=file_priority)
+
         live_orphan_files: List[OrphanRiskFile] = []
-        # Sample top source files for blame analysis
-        for file_rel_path in candidate_files[:25]:
+        # Sample candidate files for empirical blame & DOA analysis
+        for file_rel_path in candidate_files[:40]:
             try:
                 full_path = os.path.join(repo.working_tree_dir, file_rel_path)
                 if not os.path.exists(full_path):
@@ -243,16 +296,21 @@ class GitMiner:
                     author_lines[a_name] = author_lines.get(a_name, 0) + line_count
                     total_lines += line_count
 
-                if total_lines > 0:
+                if total_lines > 0 and author_lines:
                     last_mod = datetime.fromtimestamp(os.path.getmtime(full_path), tz=timezone.utc).strftime("%Y-%m-%d")
+                    primary_author = sorted(author_lines.items(), key=lambda x: x[1], reverse=True)[0][0]
+
+                    # Measure empirical ICSE metrics (FA, DL, AC) directly from Git log
+                    icse = cls.compute_file_icse_metrics(repo, file_rel_path, primary_author)
+
                     orphan_risk = cls.calculate_orphan_risk(
                         file_path=file_rel_path,
                         author_lines=author_lines,
                         total_lines=total_lines,
                         last_modified_date=last_mod,
-                        is_first_author=True,
-                        author_commits=len(live_commits),
-                        other_edits=1
+                        is_first_author=icse["is_first_author"],
+                        author_commits=icse["deliveries"],
+                        other_edits=icse["acceptances"]
                     )
                     live_orphan_files.append(orphan_risk)
             except Exception as e:

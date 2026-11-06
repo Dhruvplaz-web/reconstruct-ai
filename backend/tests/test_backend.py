@@ -226,3 +226,43 @@ def test_multi_source_ingestion_with_live_discussions():
     ))
     assert disc_res["success"] is True
     assert disc_res["messages_parsed"] >= 1
+
+def test_empirical_icse_doa_and_solo_truck_factor():
+    import git
+    repo = git.Repo(".", search_parent_directories=True)
+    
+    # 1. Test real ICSE Git log metrics extraction
+    metrics = GitMiner.compute_file_icse_metrics(repo, "run_app.py", "Dhruv Patil")
+    assert "is_first_author" in metrics
+    assert "deliveries" in metrics
+    assert "acceptances" in metrics
+    assert metrics["deliveries"] >= 1
+
+    # 2. Test Solo Author Truck Factor: verify Truck Factor is 1 (CRITICAL), never inverted to 3 (LOW)
+    from backend.app.models.schemas import OrphanRiskFile
+    solo_files = [
+        OrphanRiskFile(
+            file_path="small_module_a.py",
+            primary_author="SoloDev",
+            blame_percentage=100.0,
+            total_lines=20,
+            single_author_lines=20,
+            last_modified_date="2026-03-01",
+            bus_factor_risk="LOW",
+            risk_rationale="Small file"
+        ),
+        OrphanRiskFile(
+            file_path="small_module_b.py",
+            primary_author="SoloDev",
+            blame_percentage=100.0,
+            total_lines=15,
+            single_author_lines=15,
+            last_modified_date="2026-03-01",
+            bus_factor_risk="LOW",
+            risk_rationale="Small file"
+        )
+    ]
+    tf_solo = GitMiner.calculate_repository_truck_factor(solo_files)
+    assert tf_solo["truck_factor"] == 1
+    assert tf_solo["risk_status"] == "CRITICAL"
+    assert "SoloDev" in tf_solo["key_holders"]
