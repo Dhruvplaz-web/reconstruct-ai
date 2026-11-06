@@ -160,3 +160,99 @@ class GitMiner:
             substantive_commits.append(c)
 
         return substantive_commits
+
+    @classmethod
+    def analyze_live_repository(cls, repo_path: str = ".") -> Dict[str, Any]:
+        """
+        Performs live, real-time repository analysis on a local Git workspace using GitPython.
+        Mines actual commit history, runs line-by-line git blame on real files,
+        computes Degree of Authorship (DOA), and identifies live single-author orphan risks.
+        """
+        import git
+        repo = git.Repo(repo_path, search_parent_directories=True)
+
+        # 1. Mine Real Commits
+        live_commits: List[CommitEvent] = []
+        for c in list(repo.iter_commits(max_count=20)):
+            iso_ts = datetime.fromtimestamp(c.committed_date, tz=timezone.utc).isoformat()
+            
+            # Extract diff summary if available
+            diff_text = None
+            try:
+                if c.parents:
+                    diff_index = c.diff(c.parents[0], create_patch=True)
+                    if diff_index:
+                        diff_text = diff_index[0].diff.decode("utf-8", errors="replace")[:400]
+            except Exception:
+                diff_text = None
+
+            files_list = list(c.stats.files.keys()) if hasattr(c, "stats") else []
+
+            live_commits.append(CommitEvent(
+                sha=c.hexsha[:7],
+                author=c.author.name or "Unknown",
+                email=c.author.email,
+                timestamp=iso_ts,
+                message=c.message.strip(),
+                files_changed=files_list,
+                insertions=c.stats.total.get("insertions", 0) if hasattr(c, "stats") else 0,
+                deletions=c.stats.total.get("deletions", 0) if hasattr(c, "stats") else 0,
+                diff_snippet=diff_text,
+                security_tag="PUBLIC"
+            ))
+
+        # 2. Mine Real Files & Blame
+        tracked_files = repo.git.ls_files().splitlines()
+        # Filter source files (ignore binary, images, pdf, lockfiles)
+        source_extensions = (".py", ".ts", ".tsx", ".js", ".jsx", ".html", ".css", ".md", ".json")
+        candidate_files = [
+            f for f in tracked_files
+            if f.endswith(source_extensions) and not any(ign in f for ign in ["pnpm-lock", "package-lock", "node_modules", ".woff"])
+        ]
+
+        live_orphan_files: List[OrphanRiskFile] = []
+        # Sample top source files for blame analysis
+        for file_rel_path in candidate_files[:25]:
+            try:
+                full_path = os.path.join(repo.working_tree_dir, file_rel_path)
+                if not os.path.exists(full_path):
+                    continue
+
+                blame_data = repo.blame("HEAD", file_rel_path)
+                author_lines: Dict[str, int] = {}
+                total_lines = 0
+
+                for commit_obj, lines in blame_data:
+                    a_name = commit_obj.author.name or "Unknown"
+                    line_count = len(lines)
+                    author_lines[a_name] = author_lines.get(a_name, 0) + line_count
+                    total_lines += line_count
+
+                if total_lines > 0:
+                    last_mod = datetime.fromtimestamp(os.path.getmtime(full_path), tz=timezone.utc).strftime("%Y-%m-%d")
+                    orphan_risk = cls.calculate_orphan_risk(
+                        file_path=file_rel_path,
+                        author_lines=author_lines,
+                        total_lines=total_lines,
+                        last_modified_date=last_mod,
+                        is_first_author=True,
+                        author_commits=len(live_commits),
+                        other_edits=1
+                    )
+                    live_orphan_files.append(orphan_risk)
+            except Exception as e:
+                continue
+
+        # Sort orphan files by blame percentage descending
+        live_orphan_files.sort(key=lambda x: (x.blame_percentage, x.total_lines), reverse=True)
+
+        # 3. Calculate Real Truck Factor
+        truck_factor_analysis = cls.calculate_repository_truck_factor(live_orphan_files)
+
+        return {
+            "repo_dir": repo.working_tree_dir,
+            "active_branch": repo.active_branch.name if not repo.head.is_detached else "detached",
+            "commits": live_commits,
+            "orphan_files": live_orphan_files,
+            "truck_factor_analysis": truck_factor_analysis
+        }

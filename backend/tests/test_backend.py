@@ -25,7 +25,9 @@ from backend.app.api.router import (
     export_adr,
     get_leaver_questions,
     submit_leaver_review,
-    get_handover_workspace
+    get_handover_workspace,
+    ingest_live_repository,
+    LiveRepoRequest
 )
 from backend.app.models.schemas import LeaverReviewSubmission
 from backend.app.data.acme_payments import (
@@ -128,3 +130,31 @@ def test_adr_markdown_export():
     assert "## Status" in adr_text
     assert "## Context" in adr_text
     assert "## Verifiable Sources" in adr_text
+
+def test_live_repository_real_time_mining():
+    """
+    Real-Time Data Test:
+    Executes live Git repository mining on the current real repository.
+    Verifies actual commits, line-by-line git blame on real files,
+    live author extraction ('Dhruv Patil'), real DOA calculations,
+    and dynamic decision/question synthesis.
+    """
+    res = ingest_live_repository(LiveRepoRequest(repo_path="."))
+    assert res["success"] is True
+    assert res["mode"] == "REAL_TIME_GIT_ANALYSIS"
+    assert res["commits_analyzed"] >= 5
+    assert res["source_files_blamed"] >= 5
+    assert res["truck_factor"] >= 1
+    assert "Dhruv Patil" in res["key_maintainers"]
+    assert len(res["top_single_author_files"]) > 0
+    assert res["extracted_decisions_count"] > 0
+    assert res["generated_onboarding_tasks_count"] > 0
+
+    # Verify that live workspace reflects real-time repository data
+    ws = get_handover_workspace(role="ADMIN")
+    assert "Live Repo" in ws.project_name
+    assert "Dhruv Patil" in ws.leaver_name
+    assert len(ws.orphan_risk_files) > 0
+    assert any("run_app.py" in f.file_path or "main.py" in f.file_path for f in ws.orphan_risk_files)
+    assert len(ws.decisions) > 0
+    assert len(ws.kanban_tasks) > 0

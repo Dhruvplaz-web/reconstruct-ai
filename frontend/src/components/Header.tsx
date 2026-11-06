@@ -1,16 +1,20 @@
 "use client";
 
 import React from "react";
-import { RotateCcw, Shield, CheckCircle2, AlertTriangle } from "lucide-react";
+import { RotateCcw, Shield, CheckCircle2, AlertTriangle, FolderGit2, Loader2 } from "lucide-react";
 
 interface HeaderProps {
   role: "JUNIOR_SUCCESSOR" | "ADMIN";
   onRoleChange: (newRole: "JUNIOR_SUCCESSOR" | "ADMIN") => void;
   onOpenLeaverModal: () => void;
   onResetPlayground: () => void;
+  onAnalyzeLiveRepo: () => void;
   isResetting: boolean;
+  isAnalyzingLive: boolean;
   leaverApproved: boolean;
   signature?: string;
+  projectName?: string;
+  leaverName?: string;
 }
 
 export function Header({
@@ -18,9 +22,13 @@ export function Header({
   onRoleChange,
   onOpenLeaverModal,
   onResetPlayground,
+  onAnalyzeLiveRepo,
   isResetting,
+  isAnalyzingLive,
   leaverApproved,
-  signature
+  signature,
+  projectName = "Acme Payments Microservice",
+  leaverName = "Alice Vance"
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-slate-900 text-white border-b border-slate-800 px-4 md:px-8 py-3">
@@ -38,22 +46,37 @@ export function Header({
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Acme Payments Microservice &bull; Offboarding: <span className="text-slate-200 font-medium">Alice Vance</span>
+              <span className="text-slate-300 font-semibold">{projectName}</span> &bull; Primary Maintainer: <span className="text-slate-200 font-medium">{leaverName}</span>
             </p>
           </div>
         </div>
 
         {/* Global Controls & Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* 1-Click Playground Reset */}
+          {/* Real-Time Live Repo Ingestion Trigger */}
+          <button
+            onClick={onAnalyzeLiveRepo}
+            disabled={isAnalyzingLive}
+            title="Analyze real-time Git commits and line-by-line blame on live codebase"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-semibold border border-emerald-500/40 transition"
+          >
+            {isAnalyzingLive ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FolderGit2 className="w-3.5 h-3.5 text-emerald-400" />
+            )}
+            <span>Analyze Live Repo</span>
+          </button>
+
+          {/* 1-Click Synthetic Playground Reset */}
           <button
             onClick={onResetPlayground}
             disabled={isResetting}
-            title="Reset to clean benchmark state"
+            title="Reset to clean benchmark state (Acme Payments)"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isResetting ? "animate-spin" : ""}`} />
-            <span>1-Click Playground</span>
+            <span>Benchmark Demo</span>
           </button>
 
           {/* 60-Second Leaver Review Trigger */}
@@ -86,7 +109,7 @@ export function Header({
                   : "text-slate-300 hover:text-white"
               }`}
             >
-              Junior Successor
+              Junior
             </button>
             <button
               onClick={() => onRoleChange("ADMIN")}
@@ -96,7 +119,7 @@ export function Header({
                   : "text-slate-300 hover:text-white"
               }`}
             >
-              Admin / Lead
+              Admin
             </button>
           </div>
         </div>

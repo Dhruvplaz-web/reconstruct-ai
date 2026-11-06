@@ -6,9 +6,11 @@ and official W3C PROV-DM & ADR export endpoints.
 
 from fastapi import APIRouter, Query, HTTPException, Body
 from fastapi.responses import PlainTextResponse, Response
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import hashlib
+import os
 
 from ..models.schemas import (
     HandoverWorkspace,
@@ -32,6 +34,7 @@ from ..services.abac_filter import ABACFilter
 from ..services.graph_engine import TemporalGraphEngine
 from ..services.git_miner import GitMiner
 from ..services.nli_radar import NLIRadar
+from ..services.extraction import KnowledgeExtractor
 
 router = APIRouter(prefix="/api")
 
@@ -80,6 +83,64 @@ def reset_synthetic_playground():
         "discussions_loaded": len(APP_STATE["discussions"]),
         "orphan_risks_detected": len(APP_STATE["orphan_files"]),
         "contradictions_flagged": len(APP_STATE["contradictions"])
+    }
+
+class LiveRepoRequest(BaseModel):
+    repo_path: str = Field(default=".", description="Local directory path to Git repository")
+
+@router.post("/ingest/repo")
+def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveRepoRequest)):
+    """
+    Live Real-Time Git Repository Ingestion.
+    Inspects a real local Git repository on disk using GitPython,
+    runs actual line-by-line git blame, calculates live Degree of Authorship (DOA),
+    and synthesizes real architectural decisions and onboarding tasks.
+    """
+    try:
+        live_analysis = GitMiner.analyze_live_repository(payload.repo_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to analyze Git repository at '{payload.repo_path}': {str(e)}")
+
+    live_commits = live_analysis["commits"]
+    live_orphan_files = live_analysis["orphan_files"]
+    truck_data = live_analysis["truck_factor_analysis"]
+
+    # Extract dynamic decisions and questions from real code
+    live_decisions = KnowledgeExtractor.extract_decisions_from_commits(live_commits)
+    live_questions = KnowledgeExtractor.generate_live_leaver_questions(live_orphan_files)
+    live_kanban = KnowledgeExtractor.generate_live_kanban(live_orphan_files, live_decisions)
+
+    primary_maintainer = truck_data["key_holders"][0] if truck_data["key_holders"] else (live_commits[0].author if live_commits else "Project Maintainer")
+    repo_folder_name = os.path.basename(os.path.abspath(live_analysis["repo_dir"]))
+
+    # Update active application state with real data
+    APP_STATE["project_name"] = f"Live Repo: {repo_folder_name}"
+    APP_STATE["leaver_name"] = f"{primary_maintainer} (Live Primary Owner)"
+    APP_STATE["commits"] = live_commits
+    APP_STATE["orphan_files"] = live_orphan_files
+    APP_STATE["decisions"] = live_decisions
+    APP_STATE["kanban_tasks"] = live_kanban
+    APP_STATE["discussions"] = []
+    APP_STATE["contradictions"] = []
+    APP_STATE["leaver_approved"] = False
+    APP_STATE["approval_submission"] = None
+
+    # Replace synthetic questions in session
+    SYNTHETIC_LEAVER_QUESTIONS.clear()
+    SYNTHETIC_LEAVER_QUESTIONS.extend(live_questions)
+
+    return {
+        "success": True,
+        "mode": "REAL_TIME_GIT_ANALYSIS",
+        "repository_path": live_analysis["repo_dir"],
+        "active_branch": live_analysis["active_branch"],
+        "commits_analyzed": len(live_commits),
+        "source_files_blamed": len(live_orphan_files),
+        "truck_factor": truck_data["truck_factor"],
+        "key_maintainers": truck_data["key_holders"],
+        "top_single_author_files": [f.file_path for f in live_orphan_files[:5]],
+        "extracted_decisions_count": len(live_decisions),
+        "generated_onboarding_tasks_count": len(live_kanban)
     }
 
 @router.get("/analyze/orphan-risk", response_model=List[OrphanRiskFile])

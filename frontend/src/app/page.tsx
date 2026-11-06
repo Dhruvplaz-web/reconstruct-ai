@@ -12,7 +12,8 @@ import {
   fetchQuestions,
   submitReview,
   resetSyntheticPlayground,
-  fetchGraph
+  fetchGraph,
+  analyzeLiveRepo
 } from "@/lib/api";
 import {
   HandoverWorkspace,
@@ -32,6 +33,7 @@ export default function Home() {
   const [selectedCitation, setSelectedCitation] = useState<CitationSource | null>(null);
   const [isLeaverModalOpen, setIsLeaverModalOpen] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [isAnalyzingLive, setIsAnalyzingLive] = useState<boolean>(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [leaverApproved, setLeaverApproved] = useState<boolean>(false);
   const [signature, setSignature] = useState<string | undefined>(undefined);
@@ -111,6 +113,17 @@ export default function Home() {
     }
   };
 
+  // Handle Real-Time Live Repo Ingestion
+  const handleAnalyzeLiveRepo = async () => {
+    setIsAnalyzingLive(true);
+    try {
+      await analyzeLiveRepo(".");
+      await loadData(role);
+    } finally {
+      setIsAnalyzingLive(false);
+    }
+  };
+
   // Handle 60-Second Leaver Review Submit
   const handleSubmitReview = async (submission: LeaverReviewSubmission) => {
     setIsSubmittingReview(true);
@@ -132,9 +145,13 @@ export default function Home() {
         onRoleChange={setRole}
         onOpenLeaverModal={() => setIsLeaverModalOpen(true)}
         onResetPlayground={handleResetPlayground}
+        onAnalyzeLiveRepo={handleAnalyzeLiveRepo}
         isResetting={isResetting}
+        isAnalyzingLive={isAnalyzingLive}
         leaverApproved={leaverApproved}
         signature={signature}
+        projectName={workspace?.project_name}
+        leaverName={workspace?.leaver_name}
       />
 
       <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto">
