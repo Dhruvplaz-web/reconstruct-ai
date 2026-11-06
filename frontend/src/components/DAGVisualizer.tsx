@@ -20,6 +20,11 @@ interface DAGVisualizerProps {
   onSelectCitation: (citationId: string) => void;
 }
 
+interface CustomNodeData extends Record<string, unknown> {
+  citationId?: string;
+  label: React.ReactNode;
+}
+
 const NODE_WIDTH = 190;
 const NODE_HEIGHT = 65;
 
@@ -47,6 +52,7 @@ function getLayoutedElements(rawNodes: DAGNode[], rawEdges: DAGEdge[]) {
         y: nodeWithPosition.y - NODE_HEIGHT / 2
       },
       data: {
+        citationId: node.citation_id,
         label: (
           <div className="p-2 text-left">
             <div className="flex items-center justify-between mb-1">
@@ -113,13 +119,20 @@ export function DAGVisualizer({ nodes, edges, onSelectCitation }: DAGVisualizerP
   }, [nodes, edges]);
 
   const handleNodeClick = (_: React.MouseEvent | unknown, node: Node) => {
+    const directCitationId = (node.data as CustomNodeData)?.citationId;
+    if (directCitationId) {
+      onSelectCitation(directCitationId);
+      return;
+    }
     if (node.id.startsWith("commit:")) {
       const sha = node.id.replace("commit:", "");
       onSelectCitation(`cit-commit-${sha}`);
     } else if (node.id.startsWith("disc:")) {
-      onSelectCitation("cit-slack-001");
+      const discId = node.id.replace("disc:", "");
+      onSelectCitation(`cit-${discId}`);
     } else if (node.id.startsWith("dec:")) {
-      onSelectCitation("cit-commit-c8f192b");
+      const decId = node.id.replace("dec:", "");
+      onSelectCitation(`cit-${decId}`);
     }
   };
 

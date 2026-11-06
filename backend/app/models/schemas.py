@@ -108,5 +108,7 @@ class HandoverWorkspace(BaseModel):
     decisions: List[DecisionNode]
     contradictions: List[ContradictionAlert]
     kanban_tasks: List[KanbanTask]
+    commits: List[CommitEvent] = Field(default_factory=list)
+    discussions: List[DiscussionMessage] = Field(default_factory=list)
     stats: Dict[str, Any] = Field(default_factory=dict)
 

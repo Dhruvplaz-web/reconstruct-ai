@@ -38,7 +38,8 @@ class TemporalGraphEngine:
                 author=c.author,
                 timestamp=c.timestamp,
                 node_type="commit",
-                badge="Git Rollback" if "revert" in c.message.lower() else "Git Commit"
+                badge="Git Rollback" if "revert" in c.message.lower() else "Git Commit",
+                citation_id=f"cit-commit-{c.sha}"
             )
 
         # 2. Add Discussion Nodes
@@ -51,12 +52,14 @@ class TemporalGraphEngine:
                 author=d.author,
                 timestamp=d.timestamp,
                 node_type="discussion",
-                badge="Discussion"
+                badge="Discussion",
+                citation_id=f"cit-{d.id}"
             )
 
         # 3. Add Decision Nodes
         for dec in decisions:
             node_id = f"dec:{dec.id}"
+            prim_citation_id = dec.citations[0].id if dec.citations else f"cit-dec-{dec.id}"
             graph.add_node(
                 node_id,
                 label=dec.title,
@@ -66,7 +69,8 @@ class TemporalGraphEngine:
                 has_contradiction=dec.has_contradiction,
                 timestamp=dec.timestamp,
                 node_type="decision",
-                badge="Architecture Decision"
+                badge="Architecture Decision",
+                citation_id=prim_citation_id
             )
             # Add derivation edges from supporting citations
             for cit in dec.citations:
@@ -90,7 +94,8 @@ class TemporalGraphEngine:
                 stage=t.stage,
                 priority=t.priority,
                 node_type="task",
-                badge=f"Task ({t.stage})"
+                badge=f"Task ({t.stage})",
+                citation_id=t.citation_id
             )
             if t.citation_id and "commit" in t.citation_id:
                 sha = t.citation_id.split("-")[-1]

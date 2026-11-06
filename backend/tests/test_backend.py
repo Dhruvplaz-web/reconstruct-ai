@@ -177,10 +177,45 @@ def test_transformer_semantic_similarity():
         assert 0.20 <= sim <= 0.95
 
 def test_abac_security_negative_test():
+    # Inject a temporary sensitive contradiction to test scrub coverage
+    from backend.app.models.schemas import ContradictionAlert, CitationSource
+    from backend.app.api.router import APP_STATE
+    APP_STATE["contradictions"].append(
+        ContradictionAlert(
+            id="contra-secret-test",
+            topic="Secret Leak Check",
+            claim_a="Leaked password='super_secret_123' in chat",
+            source_a=CitationSource(
+                id="cit-secret-1",
+                source_type="discussion",
+                uri="slack://channel/general",
+                title="Secret Discussion",
+                timestamp="2026-03-01T12:00:00Z",
+                author="Alice",
+                snippet="Use sk_test_secret_key_leaked_here"
+            ),
+            claim_b="Committed sec_salt_test_hash in git",
+            source_b=CitationSource(
+                id="cit-secret-2",
+                source_type="commit",
+                uri="git://repo/commits/abc",
+                title="Secret Commit",
+                timestamp="2026-03-01T13:00:00Z",
+                author="Bob",
+                snippet="git commit with password='pass'"
+            ),
+            contradiction_score=0.9,
+            explanation="Contains secret credentials",
+            severity="HIGH",
+            status="OPEN"
+        )
+    )
+
     ws_junior = get_handover_workspace(role="JUNIOR_SUCCESSOR")
     raw_junior_text = str(ws_junior)
     assert "sk_test_51M0MockRestrictedKey991823719" not in raw_junior_text
     assert "sec_salt_998144201aefb3c9" not in raw_junior_text
+    assert "sk_test_secret_key_leaked_here" not in raw_junior_text
     assert "[REDACTED BY PERMISSION POLICY" in raw_junior_text
 
     ws_admin = get_handover_workspace(role="ADMIN")

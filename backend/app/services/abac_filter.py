@@ -80,5 +80,48 @@ class ABACFilter:
             filtered_orphan_files.append(orf_copy)
 
         workspace.orphan_risk_files = filtered_orphan_files
+
+        # 3. Filter Contradiction Alerts (scrub secrets from claims & snippets)
+        filtered_contradictions = []
+        for contra in workspace.contradictions:
+            c_copy = contra.model_copy(deep=True)
+            c_copy.claim_a = cls.redact_text(c_copy.claim_a)
+            c_copy.claim_b = cls.redact_text(c_copy.claim_b)
+            c_copy.explanation = cls.redact_text(c_copy.explanation)
+            if c_copy.source_a:
+                if c_copy.source_a.security_tag in ["CONFIDENTIAL_HR", "CONFIDENTIAL_INFRA"]:
+                    c_copy.source_a.snippet = cls.REDACTION_CHIP
+                    c_copy.source_a.title = f"{c_copy.source_a.title} (Redacted)"
+                else:
+                    c_copy.source_a.snippet = cls.redact_text(c_copy.source_a.snippet)
+            if c_copy.source_b:
+                if c_copy.source_b.security_tag in ["CONFIDENTIAL_HR", "CONFIDENTIAL_INFRA"]:
+                    c_copy.source_b.snippet = cls.REDACTION_CHIP
+                    c_copy.source_b.title = f"{c_copy.source_b.title} (Redacted)"
+                else:
+                    c_copy.source_b.snippet = cls.redact_text(c_copy.source_b.snippet)
+            filtered_contradictions.append(c_copy)
+        workspace.contradictions = filtered_contradictions
+
+        # 4. Filter Commits
+        if hasattr(workspace, "commits") and workspace.commits:
+            filtered_commits = []
+            for c in workspace.commits:
+                c_copy = c.model_copy(deep=True)
+                c_copy.message = cls.redact_text(c_copy.message)
+                if c_copy.diff_snippet:
+                    c_copy.diff_snippet = cls.redact_text(c_copy.diff_snippet)
+                filtered_commits.append(c_copy)
+            workspace.commits = filtered_commits
+
+        # 5. Filter Discussions
+        if hasattr(workspace, "discussions") and workspace.discussions:
+            filtered_discussions = []
+            for d in workspace.discussions:
+                d_copy = d.model_copy(deep=True)
+                d_copy.text = cls.redact_text(d_copy.text)
+                filtered_discussions.append(d_copy)
+            workspace.discussions = filtered_discussions
+
         return workspace
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckSquare, Square, Calendar, FileCode } from "lucide-react";
 import { KanbanTask } from "@/types";
 
@@ -12,6 +12,10 @@ interface OnboardingKanbanProps {
 export function OnboardingKanban({ tasks: initialTasks, onSelectCitation }: OnboardingKanbanProps) {
   const [tasks, setTasks] = useState<KanbanTask[]>(initialTasks);
   const [activeTab, setActiveTab] = useState<"ALL" | "DAY_1" | "DAY_7" | "DAY_30">("ALL");
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
 
   const toggleTask = (taskId: string) => {
     setTasks((prev) =>

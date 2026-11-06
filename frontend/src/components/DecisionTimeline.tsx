@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Compass, ArrowRight, Network, List, ExternalLink, Download } from "lucide-react";
-import { DAGGraph } from "@/types";
+import { DAGGraph, DecisionNode, CommitEvent, DiscussionMessage } from "@/types";
+import { API_BASE } from "@/lib/api";
 import { DAGVisualizer } from "./DAGVisualizer";
 
 interface TimelineEvent {
@@ -14,6 +15,7 @@ interface TimelineEvent {
   badge: string;
   citationId?: string;
   hasConflict?: boolean;
+  rawTimestamp?: string;
 }
 
 const STATIC_EVENTS: TimelineEvent[] = [
@@ -81,16 +83,99 @@ const STATIC_EVENTS: TimelineEvent[] = [
   }
 ];
 
+function formatDate(ts?: string): string {
+  if (!ts) return "Recent";
+  try {
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts.slice(0, 10);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return ts.slice(0, 10);
+  }
+}
+
 interface DecisionTimelineProps {
   graphData?: DAGGraph | null;
+  decisions?: DecisionNode[];
+  commits?: CommitEvent[];
+  discussions?: DiscussionMessage[];
   onSelectCitation: (citationId: string) => void;
 }
 
-export function DecisionTimeline({ graphData, onSelectCitation }: DecisionTimelineProps) {
+export function DecisionTimeline({
+  graphData,
+  decisions,
+  commits,
+  discussions,
+  onSelectCitation
+}: DecisionTimelineProps) {
   const [filter, setFilter] = useState<string>("");
   const [viewMode, setViewMode] = useState<"list" | "graph">("list");
 
-  const filteredEvents = STATIC_EVENTS.filter(
+  // Dynamically derive events from live sources if provided, or fallback to default
+  const events = useMemo<TimelineEvent[]>(() => {
+    const list: TimelineEvent[] = [];
+
+    if (commits && commits.length > 0) {
+      commits.forEach((c) => {
+        const isRevert = c.message.toLowerCase().includes("revert") || c.message.toLowerCase().includes("rollback");
+        list.push({
+          id: `ev-commit-${c.sha}`,
+          type: "commit",
+          date: formatDate(c.timestamp),
+          title: c.message.split("\n")[0],
+          author: c.author,
+          badge: isRevert ? "Git Rollback" : "Git Commit",
+          citationId: `cit-commit-${c.sha}`,
+          hasConflict: isRevert,
+          rawTimestamp: c.timestamp
+        });
+      });
+    }
+
+    if (discussions && discussions.length > 0) {
+      discussions.forEach((d) => {
+        list.push({
+          id: `ev-disc-${d.id}`,
+          type: "discussion",
+          date: formatDate(d.timestamp),
+          title: d.text.length > 85 ? d.text.slice(0, 85) + "..." : d.text,
+          author: d.author,
+          badge: `Slack #${d.channel}`,
+          citationId: `cit-${d.id}`,
+          rawTimestamp: d.timestamp
+        });
+      });
+    }
+
+    if (decisions && decisions.length > 0) {
+      decisions.forEach((dec) => {
+        list.push({
+          id: `ev-dec-${dec.id}`,
+          type: "decision",
+          date: formatDate(dec.timestamp),
+          title: dec.title,
+          author: dec.authors.join(", "),
+          badge: dec.status === "ACTIVE" ? "Active Decision" : "Reverted",
+          citationId: dec.citations?.[0]?.id,
+          hasConflict: dec.has_contradiction || dec.status === "REVERTED",
+          rawTimestamp: dec.timestamp
+        });
+      });
+    }
+
+    if (list.length === 0) {
+      return STATIC_EVENTS;
+    }
+
+    return list.sort((a, b) => {
+      const ta = new Date(a.rawTimestamp || 0).getTime();
+      const tb = new Date(b.rawTimestamp || 0).getTime();
+      return ta - tb;
+    });
+  }, [commits, discussions, decisions]);
+
+  const filteredEvents = events.filter(
     (e) =>
       e.title.toLowerCase().includes(filter.toLowerCase()) ||
       e.author.toLowerCase().includes(filter.toLowerCase())
@@ -167,11 +252,11 @@ export function DecisionTimeline({ graphData, onSelectCitation }: DecisionTimeli
                   <span className="text-[10px] text-slate-400 font-mono tabular-nums">{event.date}</span>
                   <span
                     className={`text-[9px] font-semibold px-1.5 py-0.2 rounded uppercase tracking-wider ${
-                      event.badge === "Git Rollback"
+                      event.badge === "Git Rollback" || event.badge === "Reverted"
                         ? "bg-rose-100 text-rose-700 font-bold"
                         : event.badge === "Active Decision"
                         ? "bg-blue-100 text-blue-700 font-bold"
-                        : event.badge === "Slack Discussion"
+                        : event.badge.includes("Slack")
                         ? "bg-purple-100 text-purple-700"
                         : "bg-slate-200 text-slate-700"
                     }`}
@@ -201,7 +286,7 @@ export function DecisionTimeline({ graphData, onSelectCitation }: DecisionTimeli
       {/* Export W3C & ADR footer */}
       <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
         <a
-          href="http://127.0.0.1:8000/api/export/w3c-prov"
+          href={`${API_BASE}/export/w3c-prov`}
           target="_blank"
           rel="noreferrer"
           className="text-blue-600 font-medium hover:underline flex items-center gap-0.5"
@@ -209,7 +294,7 @@ export function DecisionTimeline({ graphData, onSelectCitation }: DecisionTimeli
           <Download className="w-2.5 h-2.5" /> Export W3C PROV-JSON
         </a>
         <a
-          href="http://127.0.0.1:8000/api/export/adr"
+          href={`${API_BASE}/export/adr`}
           target="_blank"
           rel="noreferrer"
           className="text-slate-600 font-medium hover:underline flex items-center gap-0.5"

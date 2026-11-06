@@ -45,9 +45,19 @@ def main():
     print("Press Ctrl+C to terminate both servers cleanly.\n")
 
     def shutdown(signum, frame):
-        print("\nStopping services...")
-        backend_proc.terminate()
-        frontend_proc.terminate()
+        print("\nStopping services cleanly...")
+        if os.name == "nt":
+            try:
+                subprocess.run(f"taskkill /F /T /PID {frontend_proc.pid}", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            except Exception:
+                pass
+            try:
+                subprocess.run(f"taskkill /F /T /PID {backend_proc.pid}", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            except Exception:
+                pass
+        else:
+            backend_proc.terminate()
+            frontend_proc.terminate()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, shutdown)

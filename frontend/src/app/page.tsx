@@ -169,6 +169,9 @@ export default function Home() {
             <div className="lg:col-span-4 h-full">
               <DecisionTimeline
                 graphData={graphData}
+                decisions={workspace.decisions}
+                commits={workspace.commits}
+                discussions={workspace.discussions}
                 onSelectCitation={handleSelectCitation}
               />
             </div>
@@ -185,6 +188,7 @@ export default function Home() {
             {/* Column 3: Right - Onboarding Kanban (4 cols on lg) */}
             <div className="lg:col-span-4 h-full">
               <OnboardingKanban
+                key={workspace.project_name}
                 tasks={workspace.kanban_tasks}
                 onSelectCitation={handleSelectCitation}
               />

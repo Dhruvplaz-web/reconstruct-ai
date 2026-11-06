@@ -341,6 +341,8 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
         decisions=APP_STATE["decisions"],
         contradictions=APP_STATE["contradictions"],
         kanban_tasks=APP_STATE["kanban_tasks"],
+        commits=APP_STATE.get("commits", []),
+        discussions=APP_STATE.get("discussions", []),
         stats={
             "bus_factor_files_count": len([f for f in APP_STATE["orphan_files"] if f.bus_factor_risk in ["CRITICAL", "HIGH"]]),
             "truck_factor": truck_data["truck_factor"],

@@ -115,6 +115,8 @@ export interface HandoverWorkspace {
   decisions: DecisionNode[];
   contradictions: ContradictionAlert[];
   kanban_tasks: KanbanTask[];
+  commits?: CommitEvent[];
+  discussions?: DiscussionMessage[];
   stats: {
     bus_factor_files_count?: number;
     active_decisions_count?: number;
@@ -134,6 +136,7 @@ export interface DAGNode {
   badge: string;
   grounding_score?: number;
   has_contradiction?: boolean;
+  citation_id?: string;
 }
 
 export interface DAGEdge {
