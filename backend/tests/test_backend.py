@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../.
 import pytest
 import json
 from backend.app.services.git_miner import GitMiner
-from backend.app.services.nli_radar import NLIRadar
+from backend.app.services.nli_radar import NLIRadar, parse_iso_utc
 from backend.app.services.abac_filter import ABACFilter
 from backend.app.services.graph_engine import TemporalGraphEngine
 from backend.app.services.discussion_miner import DiscussionMiner
@@ -98,6 +98,83 @@ def test_grounding_score_decay_formula():
 
     low_score = radar.calculate_grounding_score(0.2, 180, 0.9)
     assert low_score < 0.40
+
+def test_nli_utc_timezone_cross_comparison():
+    radar = NLIRadar()
+    # Discussion at 3:30 PM IST (10:00:00 UTC)
+    disc_time_str = "2026-03-01T15:30:00+05:30"
+    # Commit at 10:15 AM UTC (10:15:00 UTC) -> Chronologically AFTER the discussion!
+    commit_time_str = "2026-03-01T10:15:00Z"
+
+    # Lexicographical string check fails ('10:15:00Z' < '15:30:00+05:30')
+    assert commit_time_str < disc_time_str
+
+    # Timezone-aware UTC parsing succeeds
+    disc_dt = parse_iso_utc(disc_time_str)
+    commit_dt = parse_iso_utc(commit_time_str)
+    assert commit_dt > disc_dt
+
+    from backend.app.models.schemas import DiscussionMessage, CommitEvent
+    disc = DiscussionMessage(
+        id="disc-tz-1",
+        channel="architecture",
+        author="Alice",
+        timestamp=disc_time_str,
+        text="Standardized on Redis for idempotency cache."
+    )
+    commit = CommitEvent(
+        sha="a1b2c3d",
+        author="Bob",
+        timestamp=commit_time_str,
+        message="Revert Redis adapter and fallback to PostgreSQL"
+    )
+
+    alerts = radar.scan_for_contradictions([disc], [commit])
+    assert len(alerts) == 1
+    assert alerts[0].severity == "HIGH"
+    assert alerts[0].contradiction_score >= 0.85
+
+def test_nli_expanded_taxonomy_contradictions():
+    radar = NLIRadar()
+    # gRPC vs REST
+    p1, r1 = radar.evaluate_pair_contradiction("We are adopting gRPC for internal service communication.", "Migrate all endpoints to REST json.")
+    assert p1 >= 0.70
+    assert "grpc" in r1 and "rest" in r1
+
+    # Kafka vs RabbitMQ
+    p2, r2 = radar.evaluate_pair_contradiction("Publish events to Kafka cluster.", "Replaced with RabbitMQ message broker.")
+    assert p2 >= 0.85
+
+    # Monolith vs Microservices
+    p3, r3 = radar.evaluate_pair_contradiction("We are breaking up the monolith into microservices.", "Deploy monolithic jar to production.")
+    assert p3 >= 0.70
+
+def test_grounding_score_from_timestamps():
+    radar = NLIRadar()
+    score_fresh = radar.calculate_grounding_score_from_timestamps(
+        evidence_strength=0.9,
+        evidence_timestamp="2026-03-01T12:00:00Z",
+        reference_timestamp="2026-03-01T12:00:00Z"
+    )
+    assert score_fresh > 0.90
+
+    score_aged = radar.calculate_grounding_score_from_timestamps(
+        evidence_strength=0.5,
+        evidence_timestamp="2025-01-01T00:00:00Z",
+        reference_timestamp="2026-01-01T00:00:00Z",
+        contradiction_prob=0.8
+    )
+    assert score_aged < 0.40
+
+def test_transformer_semantic_similarity():
+    radar = NLIRadar()
+    sim = radar.compute_semantic_similarity(
+        "We switched idempotency storage to Redis cluster.",
+        "Revert Redis adapter due to split-brain double charge; fallback to PostgreSQL."
+    )
+    # If transformer is loaded, similarity should be a valid cosine metric
+    if sim is not None:
+        assert 0.20 <= sim <= 0.95
 
 def test_abac_security_negative_test():
     ws_junior = get_handover_workspace(role="JUNIOR_SUCCESSOR")

@@ -133,3 +133,4 @@ class CryptoSigner:
                 "tamper_evident": False,
                 "message": f"Verification error: {str(e)}"
             }
+
