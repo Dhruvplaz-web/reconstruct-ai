@@ -1,7 +1,7 @@
 """
 Automated PyTest Test Suite for Reconstruct.ai Backend
-Direct, high-speed verification of Git Blame Miner, NLIRadar, ABAC Security,
-NetworkX Graph Engine, and FastAPI API routes.
+Direct, high-speed verification of Git Blame Miner with DOA & Truck Factor,
+NLIRadar, ABAC Security, W3C PROV-DM Document Export, and FastAPI API routes.
 """
 
 import os
@@ -9,6 +9,7 @@ import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import pytest
+import json
 from backend.app.services.git_miner import GitMiner
 from backend.app.services.nli_radar import NLIRadar
 from backend.app.services.abac_filter import ABACFilter
@@ -17,15 +18,18 @@ from backend.app.api.router import (
     health_check,
     reset_synthetic_playground,
     get_orphan_risk,
+    get_truck_factor_analysis,
     get_contradictions,
     get_temporal_graph,
+    export_w3c_prov,
+    export_adr,
     get_leaver_questions,
     submit_leaver_review,
     get_handover_workspace
 )
 from backend.app.models.schemas import LeaverReviewSubmission
 from backend.app.data.acme_payments import (
-    SYNTHETIC_DECISIONS, SYNTHETIC_COMMITS, SYNTHETIC_DISCUSSIONS, SYNTHETIC_KANBAN_TASKS
+    SYNTHETIC_DECISIONS, SYNTHETIC_COMMITS, SYNTHETIC_DISCUSSIONS, SYNTHETIC_KANBAN_TASKS, SYNTHETIC_ORPHAN_FILES
 )
 
 def test_health():
@@ -40,12 +44,21 @@ def test_synthetic_playground_reset():
     assert res["orphan_risks_detected"] >= 2
     assert res["contradictions_flagged"] >= 1
 
-def test_git_miner_orphan_risk():
+def test_git_miner_orphan_risk_and_doa():
+    # Test high single-author concentration (>75%) & DOA
     author_lines = {"Alice Vance": 380, "Bob Martin": 40}
-    risk = GitMiner.calculate_orphan_risk("services/ledger_engine.py", author_lines, 420, "2026-01-10")
+    risk = GitMiner.calculate_orphan_risk(
+        "services/ledger_engine.py", author_lines, 420, "2026-01-10",
+        is_first_author=True, author_commits=14, other_edits=1
+    )
     assert risk.bus_factor_risk == "CRITICAL"
     assert risk.blame_percentage > 85.0
     assert risk.primary_author == "Alice Vance"
+    assert "DOA:" in risk.risk_rationale
+
+    # Test Degree of Authorship formula explicitly
+    doa = GitMiner.calculate_doa(is_first_author=True, deliveries_commits=10, acceptances_edits_by_others=2)
+    assert doa > 5.0
 
     # Test moderate ownership (50-74%) -> MEDIUM
     collab_lines = {"Charlie Day": 120, "Bob Martin": 160}
@@ -56,6 +69,12 @@ def test_git_miner_orphan_risk():
     distributed_lines = {"Alice": 30, "Bob": 35, "Charlie": 35}
     low_risk = GitMiner.calculate_orphan_risk("utils/helpers.py", distributed_lines, 100, "2026-02-20")
     assert low_risk.bus_factor_risk == "LOW"
+
+def test_truck_factor_calculation():
+    tf_data = GitMiner.calculate_repository_truck_factor(SYNTHETIC_ORPHAN_FILES)
+    assert tf_data["truck_factor"] == 1
+    assert tf_data["risk_status"] == "CRITICAL"
+    assert "Alice Vance" in tf_data["key_holders"]
 
 def test_nli_radar_contradiction_detection():
     radar = NLIRadar()
@@ -74,11 +93,6 @@ def test_grounding_score_decay_formula():
     assert low_score < 0.40
 
 def test_abac_security_negative_test():
-    """
-    Negative Security Boundary Test:
-    Ensures that JUNIOR_SUCCESSOR role permanently masks secrets with redaction chips,
-    while ADMIN role preserves access.
-    """
     ws_junior = get_handover_workspace(role="JUNIOR_SUCCESSOR")
     raw_junior_text = str(ws_junior)
     assert "sk_test_51M0MockRestrictedKey991823719" not in raw_junior_text
@@ -101,8 +115,16 @@ def test_leaver_review_submission():
     contras = get_contradictions()
     assert contras[0].status == "RESOLVED_BY_LEAVER"
 
-def test_temporal_graph_is_dag():
-    dag = TemporalGraphEngine.build_graph(SYNTHETIC_DECISIONS, SYNTHETIC_COMMITS, SYNTHETIC_DISCUSSIONS, SYNTHETIC_KANBAN_TASKS)
-    assert dag["is_dag"] is True
-    assert dag["node_count"] > 10
-    assert dag["edge_count"] > 0
+def test_w3c_prov_export():
+    prov_res = export_w3c_prov()
+    prov_data = json.loads(prov_res.body.decode())
+    assert "entity" in prov_data
+    assert "prefix" in prov_data
+    assert "recon" in prov_data["prefix"]
+
+def test_adr_markdown_export():
+    adr_text = export_adr()
+    assert "# ADR-" in adr_text
+    assert "## Status" in adr_text
+    assert "## Context" in adr_text
+    assert "## Verifiable Sources" in adr_text

@@ -11,15 +11,23 @@ import {
   fetchWorkspace,
   fetchQuestions,
   submitReview,
-  resetSyntheticPlayground
+  resetSyntheticPlayground,
+  fetchGraph
 } from "@/lib/api";
-import { HandoverWorkspace, CitationSource, LeaverQuestion, LeaverReviewSubmission } from "@/types";
+import {
+  HandoverWorkspace,
+  CitationSource,
+  LeaverQuestion,
+  LeaverReviewSubmission,
+  DAGGraph
+} from "@/types";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const [role, setRole] = useState<"JUNIOR_SUCCESSOR" | "ADMIN">("JUNIOR_SUCCESSOR");
   const [workspace, setWorkspace] = useState<HandoverWorkspace | null>(null);
   const [questions, setQuestions] = useState<LeaverQuestion[]>([]);
+  const [graphData, setGraphData] = useState<DAGGraph | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCitation, setSelectedCitation] = useState<CitationSource | null>(null);
   const [isLeaverModalOpen, setIsLeaverModalOpen] = useState<boolean>(false);
@@ -28,17 +36,19 @@ export default function Home() {
   const [leaverApproved, setLeaverApproved] = useState<boolean>(false);
   const [signature, setSignature] = useState<string | undefined>(undefined);
 
-  // Load Workspace data
+  // Load Workspace & Graph data
   const loadData = useCallback(async (currentRole: "JUNIOR_SUCCESSOR" | "ADMIN") => {
     setLoading(true);
     const controller = new AbortController();
     try {
-      const [ws, qs] = await Promise.all([
+      const [ws, qs, g] = await Promise.all([
         fetchWorkspace(currentRole, controller.signal),
-        fetchQuestions(controller.signal)
+        fetchQuestions(controller.signal),
+        fetchGraph(controller.signal)
       ]);
       setWorkspace(ws);
       setQuestions(qs);
+      setGraphData(g);
       setLeaverApproved(Boolean(ws.stats?.leaver_review_completed));
       setSignature(ws.stats?.digital_signature);
     } catch (err: unknown) {
@@ -58,7 +68,6 @@ export default function Home() {
   // Handle Citation Selection
   const handleSelectCitation = (citationId: string) => {
     if (!workspace) return;
-    // Search across all decisions and contradictions
     let foundCit: CitationSource | undefined;
 
     for (const dec of workspace.decisions) {
@@ -79,7 +88,6 @@ export default function Home() {
     if (foundCit) {
       setSelectedCitation(foundCit);
     } else {
-      // Fallback display
       setSelectedCitation({
         id: citationId,
         source_type: "commit",
@@ -111,7 +119,6 @@ export default function Home() {
       setLeaverApproved(true);
       setSignature(res.signature);
       setIsLeaverModalOpen(false);
-      // Reload workspace to see real-time status update
       await loadData(role);
     } finally {
       setIsSubmittingReview(false);
@@ -138,13 +145,16 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Column 1: Left - Temporal Decision DAG (3 cols) */}
-            <div className="lg:col-span-3 h-full">
-              <DecisionTimeline onSelectCitation={handleSelectCitation} />
+            {/* Column 1: Left - Temporal Decision DAG (4 cols on lg) */}
+            <div className="lg:col-span-4 h-full">
+              <DecisionTimeline
+                graphData={graphData}
+                onSelectCitation={handleSelectCitation}
+              />
             </div>
 
-            {/* Column 2: Center - Executive Briefing & Decisions (5 cols) */}
-            <div className="lg:col-span-5 h-full">
+            {/* Column 2: Center - Executive Briefing & Decisions (4 cols on lg) */}
+            <div className="lg:col-span-4 h-full">
               <ExecutiveBriefing
                 workspace={workspace}
                 onSelectCitation={handleSelectCitation}
@@ -152,7 +162,7 @@ export default function Home() {
               />
             </div>
 
-            {/* Column 3: Right - Onboarding Kanban (4 cols) */}
+            {/* Column 3: Right - Onboarding Kanban (4 cols on lg) */}
             <div className="lg:col-span-4 h-full">
               <OnboardingKanban
                 tasks={workspace.kanban_tasks}

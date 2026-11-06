@@ -1,17 +1,19 @@
 """
 NetworkX Temporal Decision Directed Acyclic Graph (DAG) Engine
-Assembles chronological nodes (commits, discussions, decisions, tasks)
-and derivation edges into a serialized graph for visualization.
+Integrated with the official W3C PROV Python Library (trungdong/prov)
+and Industry-Standard Architecture Decision Record (ADR) generators.
 """
 
 from typing import List, Dict, Any
 import networkx as nx
+import json
+from prov.model import ProvDocument
 from ..models.schemas import DecisionNode, CommitEvent, DiscussionMessage, KanbanTask
 
 class TemporalGraphEngine:
     """
     Constructs and serializes a time-aware Directed Acyclic Graph (DAG)
-    representing the organizational provenance of a project handover.
+    and exports official W3C PROV-DM documents.
     """
 
     @staticmethod
@@ -36,7 +38,7 @@ class TemporalGraphEngine:
                 author=c.author,
                 timestamp=c.timestamp,
                 node_type="commit",
-                badge="Git Commit"
+                badge="Git Rollback" if "revert" in c.message.lower() else "Git Commit"
             )
 
         # 2. Add Discussion Nodes
@@ -66,14 +68,13 @@ class TemporalGraphEngine:
                 node_type="decision",
                 badge="Architecture Decision"
             )
-            # Add edges from supporting citations
+            # Add derivation edges from supporting citations
             for cit in dec.citations:
                 if cit.source_type == "commit":
                     target_id = f"commit:{cit.uri.split('/')[-1]}"
                     if graph.has_node(target_id):
                         graph.add_edge(target_id, node_id, relation="prov:wasDerivedFrom")
                 elif cit.source_type == "discussion":
-                    # Extract message id from uri e.g. msg=msg-slack-001
                     if "msg=" in cit.uri:
                         msg_id = cit.uri.split("msg=")[-1]
                         target_id = f"disc:{msg_id}"
@@ -118,3 +119,74 @@ class TemporalGraphEngine:
             "edges": edges
         }
 
+    @staticmethod
+    def export_w3c_prov_json(
+        decisions: List[DecisionNode],
+        commits: List[CommitEvent],
+        discussions: List[DiscussionMessage]
+    ) -> str:
+        """
+        Exports an official W3C PROV-DM Document using the trungdong/prov Python library.
+        Returns serialized W3C PROV-JSON standard string.
+        """
+        doc = ProvDocument()
+        doc.add_namespace("recon", "https://reconstruct.ai/ontology/prov#")
+        doc.add_namespace("w3c", "http://www.w3.org/ns/prov#")
+
+        # Agents
+        agent_system = doc.agent("recon:software_agent_reconstruct_ai", {"prov:type": "prov:SoftwareAgent", "recon:name": "Reconstruct.ai Engine"})
+        
+        # Commits & Discussions as Entities
+        for c in commits:
+            entity_commit = doc.entity(f"recon:commit_{c.sha}", {
+                "prov:type": "recon:GitCommit",
+                "recon:message": c.message,
+                "recon:author": c.author,
+                "recon:timestamp": c.timestamp
+            })
+            author_agent = doc.agent(f"recon:author_{c.author.replace(' ', '_').lower()}")
+            doc.wasAttributedTo(entity_commit, author_agent)
+
+        # Decisions as Derived Entities
+        for d in decisions:
+            entity_dec = doc.entity(f"recon:decision_{d.id}", {
+                "prov:type": "recon:ArchitectureDecision",
+                "recon:title": d.title,
+                "recon:grounding_score": d.grounding_score,
+                "recon:status": d.status
+            })
+            doc.wasGeneratedBy(entity_dec, agent_system)
+
+            for cit in d.citations:
+                if cit.source_type == "commit":
+                    sha = cit.uri.split("/")[-1]
+                    doc.wasDerivedFrom(entity_dec, f"recon:commit_{sha}")
+
+        return doc.serialize(format="json")
+
+    @staticmethod
+    def export_adr_markdown(decision: DecisionNode) -> str:
+        """
+        Exports an Architecture Decision Record (ADR) in Joel Parker Henderson standard format.
+        """
+        sources_list = "\n".join([f"- **{cit.title}**: `{cit.uri}` ({cit.author}, {cit.timestamp})" for cit in decision.citations])
+        
+        return f"""# ADR-{decision.id.upper()}: {decision.title}
+
+## Status
+**{decision.status}** (Epistemic Grounding Score G(A): {decision.grounding_score * 100:.1f}%)
+
+## Context
+{decision.summary}
+
+## Decision & Rationale
+{decision.rationale}
+
+## Verifiable Sources (W3C PROV-DM wasDerivedFrom)
+{sources_list}
+
+## Consequences
+- Primary maintainers: {', '.join(decision.authors)}
+- Contradiction flagged: {'YES (Resolved via Leaver Review)' if not decision.quarantined_for_review and decision.has_contradiction else ('YES (Unresolved Risk)' if decision.has_contradiction else 'NO')}
+- Date Recorded: {decision.timestamp}
+"""

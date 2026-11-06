@@ -1,9 +1,11 @@
 """
 FastAPI REST API Router
-Exposes ingestion, repository analysis, leaver review, and continuation workspace endpoints.
+Exposes ingestion, repository analysis, leaver review, continuation workspace,
+and official W3C PROV-DM & ADR export endpoints.
 """
 
 from fastapi import APIRouter, Query, HTTPException, Body
+from fastapi.responses import PlainTextResponse, Response
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import hashlib
@@ -28,6 +30,7 @@ from ..data.acme_payments import (
 )
 from ..services.abac_filter import ABACFilter
 from ..services.graph_engine import TemporalGraphEngine
+from ..services.git_miner import GitMiner
 from ..services.nli_radar import NLIRadar
 
 router = APIRouter(prefix="/api")
@@ -84,6 +87,11 @@ def get_orphan_risk():
     """Returns detected Bus Factor = 1 orphan code files."""
     return APP_STATE["orphan_files"]
 
+@router.get("/analyze/truck-factor")
+def get_truck_factor_analysis():
+    """Returns project-wide Truck Factor calculation based on HelgeCPH/truckfactor."""
+    return GitMiner.calculate_repository_truck_factor(APP_STATE["orphan_files"])
+
 @router.get("/analyze/contradictions", response_model=List[ContradictionAlert])
 def get_contradictions():
     """Returns contradictions flagged by the NLI Radar between chats and Git."""
@@ -98,6 +106,22 @@ def get_temporal_graph():
         discussions=APP_STATE["discussions"],
         tasks=APP_STATE["kanban_tasks"]
     )
+
+@router.get("/export/w3c-prov", response_class=Response)
+def export_w3c_prov():
+    """Exports the project provenance graph in official W3C PROV-JSON standard format."""
+    prov_json_str = TemporalGraphEngine.export_w3c_prov_json(
+        decisions=APP_STATE["decisions"],
+        commits=APP_STATE["commits"],
+        discussions=APP_STATE["discussions"]
+    )
+    return Response(content=prov_json_str, media_type="application/json")
+
+@router.get("/export/adr", response_class=PlainTextResponse)
+def export_adr():
+    """Exports Architecture Decision Records in Joel Parker Henderson standard Markdown."""
+    adrs = [TemporalGraphEngine.export_adr_markdown(d) for d in APP_STATE["decisions"]]
+    return "\n\n---\n\n".join(adrs)
 
 @router.get("/review/questions", response_model=List[LeaverQuestion])
 def get_leaver_questions():
@@ -126,7 +150,6 @@ def submit_leaver_review(submission: LeaverReviewSubmission):
             contra.status = "RESOLVED_BY_LEAVER"
             contra.explanation += f" (Verified by {submission.approved_by}: PostgreSQL SELECT FOR UPDATE confirmed as production truth.)"
 
-    # Also update DEC-01 quarantined status
     for dec in APP_STATE["decisions"]:
         if dec.id == "dec-001":
             dec.quarantined_for_review = False
@@ -146,12 +169,15 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
     Returns the complete continuation workspace.
     Applies server-side ABAC security redaction based on the requested role.
     """
+    truck_data = GitMiner.calculate_repository_truck_factor(APP_STATE["orphan_files"])
+
     summary_text = (
-        "Reconstruct.ai has synthesized the operational continuity profile for Acme Payments. "
-        "Alice Vance (Lead Architect) is offboarding. High single-author concentration was identified in "
-        "services/ledger_engine.py (88.4% blame). A critical contradiction regarding idempotency storage (Redis vs PostgreSQL) "
-        "was detected by DeBERTa-v3 and routed through the 60-Second Leaver Review Gate. "
-        "Follow the Day 1–30 Actionable Kanban to onboard with zero ramp-up delay."
+        f"Reconstruct.ai has synthesized the operational continuity profile for Acme Payments. "
+        f"Alice Vance (Lead Architect) is offboarding. Repository Truck Factor is {truck_data['truck_factor']} (CRITICAL). "
+        f"High single-author concentration was identified in services/ledger_engine.py (88.4% blame, DOA: 6.8). "
+        f"A critical contradiction regarding idempotency storage (Redis vs PostgreSQL) "
+        f"was detected by DeBERTa-v3 and routed through the 60-Second Leaver Review Gate. "
+        f"Follow the Day 1–30 Actionable Kanban to onboard with zero ramp-up delay."
     )
 
     workspace = HandoverWorkspace(
@@ -167,6 +193,8 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
         kanban_tasks=APP_STATE["kanban_tasks"],
         stats={
             "bus_factor_files_count": len([f for f in APP_STATE["orphan_files"] if f.bus_factor_risk in ["CRITICAL", "HIGH"]]),
+            "truck_factor": truck_data["truck_factor"],
+            "truck_factor_status": truck_data["risk_status"],
             "active_decisions_count": len(APP_STATE["decisions"]),
             "unresolved_contradictions": len([c for c in APP_STATE["contradictions"] if c.status == "OPEN"]),
             "leaver_review_completed": APP_STATE["leaver_approved"],
@@ -177,4 +205,3 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
     # Server-side ABAC Policy Application
     filtered_workspace = ABACFilter.filter_workspace(workspace, role=role)
     return filtered_workspace
-
