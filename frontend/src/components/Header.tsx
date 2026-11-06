@@ -7,8 +7,8 @@ interface HeaderProps {
   role: "JUNIOR_SUCCESSOR" | "ADMIN";
   onRoleChange: (newRole: "JUNIOR_SUCCESSOR" | "ADMIN") => void;
   onOpenLeaverModal: () => void;
+  onOpenIngestModal: () => void;
   onResetPlayground: () => void;
-  onAnalyzeLiveRepo: () => void;
   isResetting: boolean;
   isAnalyzingLive: boolean;
   leaverApproved: boolean;
@@ -21,8 +21,8 @@ export function Header({
   role,
   onRoleChange,
   onOpenLeaverModal,
+  onOpenIngestModal,
   onResetPlayground,
-  onAnalyzeLiveRepo,
   isResetting,
   isAnalyzingLive,
   leaverApproved,
@@ -53,11 +53,11 @@ export function Header({
 
         {/* Global Controls & Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Real-Time Live Repo Ingestion Trigger */}
+          {/* Multi-Source Real-Time Ingestion Trigger */}
           <button
-            onClick={onAnalyzeLiveRepo}
+            onClick={onOpenIngestModal}
             disabled={isAnalyzingLive}
-            title="Analyze real-time Git commits and line-by-line blame on live codebase"
+            title="Open pipeline to ingest local repo, remote Git clone, or team Slack/Discord traces"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs font-semibold border border-emerald-500/40 transition"
           >
             {isAnalyzingLive ? (
@@ -65,7 +65,7 @@ export function Header({
             ) : (
               <FolderGit2 className="w-3.5 h-3.5 text-emerald-400" />
             )}
-            <span>Analyze Live Repo</span>
+            <span>Ingest Sources</span>
           </button>
 
           {/* 1-Click Synthetic Playground Reset */}

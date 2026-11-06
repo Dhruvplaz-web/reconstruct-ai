@@ -35,6 +35,7 @@ from ..services.graph_engine import TemporalGraphEngine
 from ..services.git_miner import GitMiner
 from ..services.nli_radar import NLIRadar
 from ..services.extraction import KnowledgeExtractor
+from ..services.discussion_miner import DiscussionMiner
 
 router = APIRouter(prefix="/api")
 
@@ -49,7 +50,8 @@ APP_STATE: Dict[str, Any] = {
     "orphan_files": list(SYNTHETIC_ORPHAN_FILES),
     "kanban_tasks": list(SYNTHETIC_KANBAN_TASKS),
     "commits": list(SYNTHETIC_COMMITS),
-    "discussions": list(SYNTHETIC_DISCUSSIONS)
+    "discussions": list(SYNTHETIC_DISCUSSIONS),
+    "leaver_questions": list(SYNTHETIC_LEAVER_QUESTIONS)
 }
 
 @router.get("/health")
@@ -68,12 +70,15 @@ def reset_synthetic_playground():
     1-Click Demo Playground Ingestion.
     Resets the in-memory state to the synthetic Acme Payments benchmark dataset.
     """
+    APP_STATE["project_name"] = "Acme Payments Microservice"
+    APP_STATE["leaver_name"] = "Alice Vance (Lead Architect)"
     APP_STATE["decisions"] = list(SYNTHETIC_DECISIONS)
     APP_STATE["contradictions"] = list(SYNTHETIC_CONTRADICTIONS)
     APP_STATE["orphan_files"] = list(SYNTHETIC_ORPHAN_FILES)
     APP_STATE["kanban_tasks"] = list(SYNTHETIC_KANBAN_TASKS)
     APP_STATE["commits"] = list(SYNTHETIC_COMMITS)
     APP_STATE["discussions"] = list(SYNTHETIC_DISCUSSIONS)
+    APP_STATE["leaver_questions"] = list(SYNTHETIC_LEAVER_QUESTIONS)
     APP_STATE["leaver_approved"] = False
     APP_STATE["approval_submission"] = None
 
@@ -86,20 +91,23 @@ def reset_synthetic_playground():
     }
 
 class LiveRepoRequest(BaseModel):
-    repo_path: str = Field(default=".", description="Local directory path to Git repository")
+    repo_path: Optional[str] = Field(default=".", description="Local directory path to Git repository")
+    git_url: Optional[str] = Field(default=None, description="Remote Git clone URL (e.g. https://github.com/...)")
+    discussions_raw: Optional[str] = Field(default=None, description="Raw JSON or plain text transcript of Slack/Discord messages")
+    pair_sample_discussions: bool = Field(default=False, description="Whether to pair sample team discussions to activate NLI radar")
 
 @router.post("/ingest/repo")
 def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveRepoRequest)):
     """
-    Live Real-Time Git Repository Ingestion.
-    Inspects a real local Git repository on disk using GitPython,
-    runs actual line-by-line git blame, calculates live Degree of Authorship (DOA),
-    and synthesizes real architectural decisions and onboarding tasks.
+    Live Real-Time Git Repository & Discussion Ingestion.
+    Inspects a real local Git repository or remote clone using GitPython,
+    runs actual line-by-line git blame, calculates Degree of Authorship (DOA),
+    synthesizes architectural decisions, and pairs discussion traces for NLI contradiction scanning.
     """
     try:
-        live_analysis = GitMiner.analyze_live_repository(payload.repo_path)
+        live_analysis = GitMiner.analyze_live_repository(repo_path=payload.repo_path, git_url=payload.git_url)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to analyze Git repository at '{payload.repo_path}': {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to analyze repository: {str(e)}")
 
     live_commits = live_analysis["commits"]
     live_orphan_files = live_analysis["orphan_files"]
@@ -109,6 +117,19 @@ def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveR
     live_decisions = KnowledgeExtractor.extract_decisions_from_commits(live_commits)
     live_questions = KnowledgeExtractor.generate_live_leaver_questions(live_orphan_files)
     live_kanban = KnowledgeExtractor.generate_live_kanban(live_orphan_files, live_decisions)
+
+    # Ingest discussions if provided or paired
+    live_discussions: List[DiscussionMessage] = []
+    if payload.discussions_raw and payload.discussions_raw.strip():
+        live_discussions = DiscussionMiner.ingest_generic(payload.discussions_raw)
+    elif payload.pair_sample_discussions:
+        live_discussions = list(SYNTHETIC_DISCUSSIONS)
+
+    # Run NLI Radar against commits to detect contradictions
+    live_contradictions: List[ContradictionAlert] = []
+    if live_discussions and live_commits:
+        radar = NLIRadar()
+        live_contradictions = radar.scan_for_contradictions(live_discussions, live_commits)
 
     primary_maintainer = truck_data["key_holders"][0] if truck_data["key_holders"] else (live_commits[0].author if live_commits else "Project Maintainer")
     repo_folder_name = os.path.basename(os.path.abspath(live_analysis["repo_dir"]))
@@ -120,14 +141,11 @@ def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveR
     APP_STATE["orphan_files"] = live_orphan_files
     APP_STATE["decisions"] = live_decisions
     APP_STATE["kanban_tasks"] = live_kanban
-    APP_STATE["discussions"] = []
-    APP_STATE["contradictions"] = []
+    APP_STATE["discussions"] = live_discussions
+    APP_STATE["contradictions"] = live_contradictions
+    APP_STATE["leaver_questions"] = live_questions if live_questions else list(SYNTHETIC_LEAVER_QUESTIONS)
     APP_STATE["leaver_approved"] = False
     APP_STATE["approval_submission"] = None
-
-    # Replace synthetic questions in session
-    SYNTHETIC_LEAVER_QUESTIONS.clear()
-    SYNTHETIC_LEAVER_QUESTIONS.extend(live_questions)
 
     return {
         "success": True,
@@ -138,9 +156,40 @@ def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveR
         "source_files_blamed": len(live_orphan_files),
         "truck_factor": truck_data["truck_factor"],
         "key_maintainers": truck_data["key_holders"],
+        "discussions_ingested": len(live_discussions),
+        "contradictions_detected": len(live_contradictions),
         "top_single_author_files": [f.file_path for f in live_orphan_files[:5]],
         "extracted_decisions_count": len(live_decisions),
         "generated_onboarding_tasks_count": len(live_kanban)
+    }
+
+class DiscussionIngestRequest(BaseModel):
+    content: str = Field(..., description="Raw JSON or plain text of Slack/Discord messages")
+    channel: str = Field(default="architecture-sync", description="Target discussion channel")
+
+@router.post("/ingest/discussions")
+def ingest_discussions(payload: DiscussionIngestRequest):
+    """
+    Ingests and normalizes discussion messages from Slack or Discord.
+    Runs the Epistemic Contradiction Radar to cross-reference statements against the current Git commit history.
+    """
+    new_messages = DiscussionMiner.ingest_generic(payload.content, channel=payload.channel)
+    if not new_messages:
+        raise HTTPException(status_code=400, detail="Could not parse any discussion messages from provided payload.")
+
+    APP_STATE["discussions"].extend(new_messages)
+
+    # Scan for contradictions against active commits
+    radar = NLIRadar()
+    new_contradictions = radar.scan_for_contradictions(APP_STATE["discussions"], APP_STATE["commits"])
+    APP_STATE["contradictions"] = new_contradictions
+
+    return {
+        "success": True,
+        "messages_parsed": len(new_messages),
+        "total_discussions": len(APP_STATE["discussions"]),
+        "contradictions_detected": len(new_contradictions),
+        "topics_flagged": [c.topic for c in new_contradictions]
     }
 
 @router.get("/analyze/orphan-risk", response_model=List[OrphanRiskFile])
@@ -186,8 +235,8 @@ def export_adr():
 
 @router.get("/review/questions", response_model=List[LeaverQuestion])
 def get_leaver_questions():
-    """Returns the 3 targeted micro-questions for the 60-second review."""
-    return SYNTHETIC_LEAVER_QUESTIONS
+    """Returns the targeted micro-questions for the 60-second review."""
+    return APP_STATE.get("leaver_questions", SYNTHETIC_LEAVER_QUESTIONS)
 
 @router.post("/review/submit")
 def submit_leaver_review(submission: LeaverReviewSubmission):
@@ -205,15 +254,15 @@ def submit_leaver_review(submission: LeaverReviewSubmission):
     APP_STATE["leaver_approved"] = True
     APP_STATE["approval_submission"] = submission
 
-    # If leaver answered Q2 (confirming PostgreSQL), update contradiction status to RESOLVED
+    # Resolve flagged contradictions upon leaver confirmation
     for contra in APP_STATE["contradictions"]:
-        if contra.id == "contra-001":
+        if contra.status == "OPEN":
             contra.status = "RESOLVED_BY_LEAVER"
-            contra.explanation += f" (Verified by {submission.approved_by}: PostgreSQL SELECT FOR UPDATE confirmed as production truth.)"
+            contra.explanation += f" (Verified by {submission.approved_by} during 60-Second Leaver Review Gate.)"
 
     for dec in APP_STATE["decisions"]:
-        if dec.id == "dec-001":
-            dec.quarantined_for_review = False
+        dec.quarantined_for_review = False
+        if dec.status in ["UNDER_REVIEW", "SUPERSEDED"]:
             dec.status = "ACTIVE"
 
     return {
@@ -232,12 +281,24 @@ def get_handover_workspace(role: str = Query(default="JUNIOR_SUCCESSOR")):
     """
     truck_data = GitMiner.calculate_repository_truck_factor(APP_STATE["orphan_files"])
 
+    top_file_desc = ""
+    if APP_STATE["orphan_files"]:
+        top_f = APP_STATE["orphan_files"][0]
+        top_file_desc = f"High single-author concentration was identified in {top_f.file_path} ({top_f.blame_percentage}% blame). "
+
+    contra_desc = ""
+    if APP_STATE["contradictions"]:
+        open_c = [c for c in APP_STATE["contradictions"] if c.status == "OPEN"]
+        if open_c:
+            contra_desc = f"A critical contradiction regarding '{open_c[0].topic}' was detected by the NLI Radar and routed through the 60-Second Leaver Review Gate. "
+        else:
+            contra_desc = "All cross-source contradictions have been verified and confirmed by the departing maintainer. "
+
     summary_text = (
-        f"Reconstruct.ai has synthesized the operational continuity profile for Acme Payments. "
-        f"Alice Vance (Lead Architect) is offboarding. Repository Truck Factor is {truck_data['truck_factor']} (CRITICAL). "
-        f"High single-author concentration was identified in services/ledger_engine.py (88.4% blame, DOA: 6.8). "
-        f"A critical contradiction regarding idempotency storage (Redis vs PostgreSQL) "
-        f"was detected by DeBERTa-v3 and routed through the 60-Second Leaver Review Gate. "
+        f"Reconstruct.ai has synthesized the operational continuity profile for {APP_STATE['project_name']}. "
+        f"{APP_STATE['leaver_name']} is offboarding. Repository Truck Factor is {truck_data['truck_factor']} ({truck_data['risk_status']}). "
+        f"{top_file_desc}"
+        f"{contra_desc}"
         f"Follow the Day 1–30 Actionable Kanban to onboard with zero ramp-up delay."
     )
 

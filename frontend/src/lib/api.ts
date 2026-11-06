@@ -66,21 +66,67 @@ export async function resetSyntheticPlayground(signal?: AbortSignal): Promise<vo
   }
 }
 
+export interface IngestRepoOptions {
+  repoPath?: string;
+  gitUrl?: string;
+  discussionsRaw?: string;
+  pairSampleDiscussions?: boolean;
+}
+
+export async function ingestLiveSources(
+  options: IngestRepoOptions = { repoPath: "." },
+  signal?: AbortSignal
+): Promise<{
+  success: boolean;
+  mode: string;
+  repository_path: string;
+  active_branch: string;
+  commits_analyzed: number;
+  source_files_blamed: number;
+  truck_factor: number;
+  discussions_ingested: number;
+  contradictions_detected: number;
+}> {
+  const res = await fetch(`${API_BASE}/ingest/repo`, {
+    method: "POST",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      repo_path: options.repoPath || ".",
+      git_url: options.gitUrl || null,
+      discussions_raw: options.discussionsRaw || null,
+      pair_sample_discussions: Boolean(options.pairSampleDiscussions)
+    })
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Ingestion failed with HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
 export async function analyzeLiveRepo(repoPath: string = ".", signal?: AbortSignal): Promise<{ success: boolean; commits_analyzed: number; source_files_blamed: number; truck_factor: number }> {
   try {
-    const res = await fetch(`${API_BASE}/ingest/repo`, {
-      method: "POST",
-      signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ repo_path: repoPath })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    return await ingestLiveSources({ repoPath }, signal);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === "AbortError") throw err;
     console.warn("Live analysis fallback.", err);
     return { success: true, commits_analyzed: 5, source_files_blamed: 25, truck_factor: 1 };
   }
+}
+
+export async function ingestDiscussions(content: string, channel: string = "architecture-sync", signal?: AbortSignal): Promise<{ success: boolean; messages_parsed: number; contradictions_detected: number }> {
+  const res = await fetch(`${API_BASE}/ingest/discussions`, {
+    method: "POST",
+    signal,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, channel })
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || `Discussion ingest failed with HTTP ${res.status}`);
+  }
+  return await res.json();
 }
 
 export async function fetchGraph(signal?: AbortSignal): Promise<DAGGraph> {

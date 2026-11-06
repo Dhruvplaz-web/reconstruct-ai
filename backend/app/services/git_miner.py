@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional
 import os
 import re
 import math
+import tempfile
 from datetime import datetime, timezone
 from ..models.schemas import OrphanRiskFile, CommitEvent
 
@@ -162,14 +163,28 @@ class GitMiner:
         return substantive_commits
 
     @classmethod
-    def analyze_live_repository(cls, repo_path: str = ".") -> Dict[str, Any]:
+    def analyze_live_repository(cls, repo_path: Optional[str] = ".", git_url: Optional[str] = None) -> Dict[str, Any]:
         """
-        Performs live, real-time repository analysis on a local Git workspace using GitPython.
+        Performs live, real-time repository analysis on a local Git workspace or shallow-cloned remote repository.
         Mines actual commit history, runs line-by-line git blame on real files,
         computes Degree of Authorship (DOA), and identifies live single-author orphan risks.
         """
         import git
-        repo = git.Repo(repo_path, search_parent_directories=True)
+
+        is_temp_clone = False
+        target_path = repo_path or "."
+
+        if git_url and git_url.strip():
+            temp_dir = tempfile.mkdtemp(prefix="recon_clone_")
+            git.Repo.clone_from(git_url.strip(), temp_dir, depth=25)
+            target_path = temp_dir
+            is_temp_clone = True
+        else:
+            target_path = os.path.abspath(os.path.expanduser(target_path))
+            if not os.path.exists(target_path):
+                raise FileNotFoundError(f"Local repository path does not exist: '{target_path}'")
+
+        repo = git.Repo(target_path, search_parent_directories=True)
 
         # 1. Mine Real Commits
         live_commits: List[CommitEvent] = []

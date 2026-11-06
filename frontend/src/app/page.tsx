@@ -7,13 +7,15 @@ import { ExecutiveBriefing } from "@/components/ExecutiveBriefing";
 import { OnboardingKanban } from "@/components/OnboardingKanban";
 import { CitationDrawer } from "@/components/CitationDrawer";
 import { LeaverReviewModal } from "@/components/LeaverReviewModal";
+import { IngestModal } from "@/components/IngestModal";
 import {
   fetchWorkspace,
   fetchQuestions,
   submitReview,
   resetSyntheticPlayground,
   fetchGraph,
-  analyzeLiveRepo
+  ingestLiveSources,
+  IngestRepoOptions
 } from "@/lib/api";
 import {
   HandoverWorkspace,
@@ -32,6 +34,7 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCitation, setSelectedCitation] = useState<CitationSource | null>(null);
   const [isLeaverModalOpen, setIsLeaverModalOpen] = useState<boolean>(false);
+  const [isIngestModalOpen, setIsIngestModalOpen] = useState<boolean>(false);
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [isAnalyzingLive, setIsAnalyzingLive] = useState<boolean>(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
@@ -113,11 +116,11 @@ export default function Home() {
     }
   };
 
-  // Handle Real-Time Live Repo Ingestion
-  const handleAnalyzeLiveRepo = async () => {
+  // Handle Multi-Source Ingestion (Local repo, remote Git clone, and Slack/Discord discussions)
+  const handleIngestSources = async (options: IngestRepoOptions) => {
     setIsAnalyzingLive(true);
     try {
-      await analyzeLiveRepo(".");
+      await ingestLiveSources(options);
       await loadData(role);
     } finally {
       setIsAnalyzingLive(false);
@@ -144,8 +147,8 @@ export default function Home() {
         role={role}
         onRoleChange={setRole}
         onOpenLeaverModal={() => setIsLeaverModalOpen(true)}
+        onOpenIngestModal={() => setIsIngestModalOpen(true)}
         onResetPlayground={handleResetPlayground}
-        onAnalyzeLiveRepo={handleAnalyzeLiveRepo}
         isResetting={isResetting}
         isAnalyzingLive={isAnalyzingLive}
         leaverApproved={leaverApproved}
@@ -194,6 +197,14 @@ export default function Home() {
       <CitationDrawer
         citation={selectedCitation}
         onClose={() => setSelectedCitation(null)}
+      />
+
+      {/* Multi-Source Ingestion Pipeline Modal */}
+      <IngestModal
+        isOpen={isIngestModalOpen}
+        onClose={() => setIsIngestModalOpen(false)}
+        onIngest={handleIngestSources}
+        isIngesting={isAnalyzingLive}
       />
 
       {/* 60-Second Leaver Review Modal */}

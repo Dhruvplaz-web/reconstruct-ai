@@ -1,0 +1,35 @@
+[
+  {
+    "client_msg_id": "slack-live-001",
+    "type": "message",
+    "text": "Architecture sync: We agreed in yesterday's design review to route merchant lock transactions through Redis cluster for 24h peak durability.",
+    "user": "U0123PAYMENT",
+    "user_profile": {
+      "real_name": "Alice Vance (Lead Architect)",
+      "name": "alice.vance"
+    },
+    "ts": "1770908700.000100"
+  },
+  {
+    "client_msg_id": "slack-live-002",
+    "type": "message",
+    "text": "Heads up team: After load testing under 10k RPS, Redis cluster experienced network partition split-brain charges. Rollback in progress.",
+    "user": "U0124BACKEND",
+    "user_profile": {
+      "real_name": "Bob Martin (Staff SRE)",
+      "name": "bob.martin"
+    },
+    "ts": "1771427100.000200"
+  },
+  {
+    "client_msg_id": "slack-live-003",
+    "type": "message",
+    "text": "PostgreSQL SELECT FOR UPDATE restored to production ledger engine. All duplicate charges prevented.",
+    "user": "U0124BACKEND",
+    "user_profile": {
+      "real_name": "Bob Martin (Staff SRE)",
+      "name": "bob.martin"
+    },
+    "ts": "1771427400.000300"
+  }
+]

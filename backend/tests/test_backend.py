@@ -14,6 +14,7 @@ from backend.app.services.git_miner import GitMiner
 from backend.app.services.nli_radar import NLIRadar
 from backend.app.services.abac_filter import ABACFilter
 from backend.app.services.graph_engine import TemporalGraphEngine
+from backend.app.services.discussion_miner import DiscussionMiner
 from backend.app.api.router import (
     health_check,
     reset_synthetic_playground,
@@ -27,7 +28,9 @@ from backend.app.api.router import (
     submit_leaver_review,
     get_handover_workspace,
     ingest_live_repository,
-    LiveRepoRequest
+    ingest_discussions,
+    LiveRepoRequest,
+    DiscussionIngestRequest
 )
 from backend.app.models.schemas import LeaverReviewSubmission
 from backend.app.data.acme_payments import (
@@ -158,3 +161,68 @@ def test_live_repository_real_time_mining():
     assert any("run_app.py" in f.file_path or "main.py" in f.file_path for f in ws.orphan_risk_files)
     assert len(ws.decisions) > 0
     assert len(ws.kanban_tasks) > 0
+
+def test_discussion_miner_slack_and_discord_parsing():
+    # 1. Test Slack Export Parsing
+    sample_slack = [
+        {
+            "client_msg_id": "99b1a03e-test",
+            "type": "message",
+            "text": "Architecture sync: We switched payment lock engine to Redis cluster.",
+            "user": "U12345",
+            "user_profile": {"real_name": "Alice Vance"},
+            "ts": "1770908700.000100"
+        }
+    ]
+    slack_msgs = DiscussionMiner.parse_slack_export(sample_slack, channel="arch")
+    assert len(slack_msgs) == 1
+    assert slack_msgs[0].author == "Alice Vance"
+    assert "Redis" in slack_msgs[0].text
+    assert slack_msgs[0].channel == "arch"
+
+    # 2. Test Discord Export Parsing
+    sample_discord = [
+        {
+            "id": "11998822",
+            "author": {"name": "Bob", "nickname": "Bob Martin"},
+            "content": "Reverted Redis adapter due to race condition; restored Postgres.",
+            "timestamp": "2026-02-18T10:00:00Z"
+        }
+    ]
+    discord_msgs = DiscussionMiner.parse_discord_export(sample_discord, channel="dev")
+    assert len(discord_msgs) == 1
+    assert discord_msgs[0].author == "Bob Martin"
+    assert "Reverted Redis" in discord_msgs[0].text
+
+    # 3. Test Raw Transcript Parsing
+    transcript = "[2026-02-12 14:30:00] Alice Vance: We decided to deploy RabbitMQ.\nBob Martin: Confirmed."
+    raw_msgs = DiscussionMiner.parse_raw_transcript(transcript)
+    assert len(raw_msgs) == 2
+    assert raw_msgs[0].author == "Alice Vance"
+    assert "RabbitMQ" in raw_msgs[0].text
+
+def test_multi_source_ingestion_with_live_discussions():
+    # Ingest live repository with paired discussions to test NLI radar integration
+    raw_slack_json = json.dumps([
+        {
+            "client_msg_id": "slack-live-01",
+            "text": "In today's sync we agreed to switch payment idempotency to Redis cluster.",
+            "user_profile": {"real_name": "Alice Vance"},
+            "ts": "1770908700.000100"
+        }
+    ])
+    res = ingest_live_repository(LiveRepoRequest(
+        repo_path=".",
+        discussions_raw=raw_slack_json,
+        pair_sample_discussions=True
+    ))
+    assert res["success"] is True
+    assert res["discussions_ingested"] >= 1
+    
+    # Test discussion endpoint explicitly
+    disc_res = ingest_discussions(DiscussionIngestRequest(
+        content="Alice Vance: We tested redis vs postgres.",
+        channel="architecture"
+    ))
+    assert disc_res["success"] is True
+    assert disc_res["messages_parsed"] >= 1
