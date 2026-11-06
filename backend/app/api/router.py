@@ -37,23 +37,12 @@ from ..services.nli_radar import NLIRadar
 from ..services.extraction import KnowledgeExtractor
 from ..services.discussion_miner import DiscussionMiner
 from ..services.crypto_signer import CryptoSigner
+from ..services.state_store import StateStore
 
 router = APIRouter(prefix="/api")
 
-# State store in-memory for active session
-APP_STATE: Dict[str, Any] = {
-    "project_name": "Acme Payments Microservice",
-    "leaver_name": "Alice Vance (Lead Architect)",
-    "leaver_approved": False,
-    "approval_submission": None,
-    "decisions": list(SYNTHETIC_DECISIONS),
-    "contradictions": list(SYNTHETIC_CONTRADICTIONS),
-    "orphan_files": list(SYNTHETIC_ORPHAN_FILES),
-    "kanban_tasks": list(SYNTHETIC_KANBAN_TASKS),
-    "commits": list(SYNTHETIC_COMMITS),
-    "discussions": list(SYNTHETIC_DISCUSSIONS),
-    "leaver_questions": list(SYNTHETIC_LEAVER_QUESTIONS)
-}
+# State store loaded from persisted session snapshot or synthetic benchmark default
+APP_STATE: Dict[str, Any] = StateStore.load_or_default()
 
 @router.get("/health")
 def health_check():
@@ -63,6 +52,20 @@ def health_check():
         "version": "1.0.0-round2-ready",
         "institution": "JSPM RSCOE, Pune",
         "team": "TEAM DOMINATOR"
+    }
+
+@router.get("/session/status")
+def get_session_status():
+    """Returns the persistent storage status of the active handover session."""
+    return {
+        "persisted": True,
+        "project_name": APP_STATE.get("project_name"),
+        "leaver_name": APP_STATE.get("leaver_name"),
+        "leaver_approved": APP_STATE.get("leaver_approved", False),
+        "commits_count": len(APP_STATE.get("commits", [])),
+        "decisions_count": len(APP_STATE.get("decisions", [])),
+        "contradictions_count": len(APP_STATE.get("contradictions", [])),
+        "orphan_files_count": len(APP_STATE.get("orphan_files", []))
     }
 
 @router.post("/ingest/synthetic")
@@ -82,6 +85,8 @@ def reset_synthetic_playground():
     APP_STATE["leaver_questions"] = list(SYNTHETIC_LEAVER_QUESTIONS)
     APP_STATE["leaver_approved"] = False
     APP_STATE["approval_submission"] = None
+
+    StateStore.save_state(APP_STATE)
 
     return {
         "message": "Successfully ingested Acme Payments benchmark dataset.",
@@ -148,6 +153,8 @@ def ingest_live_repository(payload: LiveRepoRequest = Body(default_factory=LiveR
     APP_STATE["leaver_approved"] = False
     APP_STATE["approval_submission"] = None
 
+    StateStore.save_state(APP_STATE)
+
     return {
         "success": True,
         "mode": "REAL_TIME_GIT_ANALYSIS",
@@ -184,6 +191,8 @@ def ingest_discussions(payload: DiscussionIngestRequest):
     radar = NLIRadar()
     new_contradictions = radar.scan_for_contradictions(APP_STATE["discussions"], APP_STATE["commits"])
     APP_STATE["contradictions"] = new_contradictions
+
+    StateStore.save_state(APP_STATE)
 
     return {
         "success": True,
@@ -272,6 +281,8 @@ def submit_leaver_review(submission: LeaverReviewSubmission):
         dec.quarantined_for_review = False
         if dec.status in ["UNDER_REVIEW", "SUPERSEDED"]:
             dec.status = "ACTIVE"
+
+    StateStore.save_state(APP_STATE)
 
     return {
         "success": True,

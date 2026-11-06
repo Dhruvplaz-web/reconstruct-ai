@@ -8,6 +8,33 @@ import sys
 import time
 import os
 import signal
+import socket
+
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    """Checks if a network port is currently occupied."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(0.5)
+        return s.connect_ex((host, port)) == 0
+
+def reclaim_port(port: int):
+    """Reclaims an occupied port by terminating the stale zombie process."""
+    if not is_port_in_use(port):
+        return
+    print(f"  ⚠️ Port {port} is occupied by an existing process. Reclaiming port cleanly...")
+    if os.name == "nt":
+        try:
+            output = subprocess.check_output(f"netstat -ano | findstr :{port}", shell=True).decode()
+            pids = set()
+            for line in output.strip().splitlines():
+                parts = line.split()
+                if len(parts) >= 5 and "LISTENING" in parts:
+                    pids.add(parts[-1])
+            for pid in pids:
+                if pid != "0":
+                    subprocess.run(f"taskkill /F /PID {pid}", shell=True, stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+            time.sleep(1)
+        except Exception:
+            pass
 
 def main():
     root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -17,6 +44,11 @@ def main():
     print("  🚀 RECONSTRUCT.AI — LOCAL DEVELOPMENT RUNNER")
     print("  TEAM DOMINATOR • JSPM RSCOE, PUNE")
     print("=" * 65)
+
+    # Pre-flight check: Reclaim ports if previously left hanging
+    reclaim_port(8000)
+    reclaim_port(3000)
+
     print("\nStarting backend on http://127.0.0.1:8000 ...")
 
     # Start FastAPI

@@ -42,6 +42,8 @@ build/
 .env.*.local
 *.pem
 *.key
+backend/app/data/session_state.json
+*.tmp
 
 # IDE
 .vscode/

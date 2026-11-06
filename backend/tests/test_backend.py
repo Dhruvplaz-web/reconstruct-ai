@@ -17,6 +17,7 @@ from backend.app.services.graph_engine import TemporalGraphEngine
 from backend.app.services.discussion_miner import DiscussionMiner
 from backend.app.api.router import (
     health_check,
+    get_session_status,
     reset_synthetic_playground,
     get_orphan_risk,
     get_truck_factor_analysis,
@@ -421,3 +422,34 @@ def test_empirical_icse_doa_and_solo_truck_factor():
     assert tf_solo["truck_factor"] == 1
     assert tf_solo["risk_status"] == "CRITICAL"
     assert "SoloDev" in tf_solo["key_holders"]
+
+def test_state_store_persistence(tmp_path):
+    from backend.app.services.state_store import StateStore
+    test_file = str(tmp_path / "test_session_state.json")
+    
+    default_state = StateStore.get_default_state()
+    assert default_state["project_name"] == "Acme Payments Microservice"
+    
+    # Modify state and save
+    default_state["project_name"] = "Persisted Custom Project"
+    default_state["leaver_approved"] = True
+    save_ok = StateStore.save_state(default_state, filepath=test_file)
+    assert save_ok is True
+    assert os.path.exists(test_file)
+
+    # Hydrate back
+    hydrated = StateStore.load_state(filepath=test_file)
+    assert hydrated is not None
+    assert hydrated["project_name"] == "Persisted Custom Project"
+    assert hydrated["leaver_approved"] is True
+    assert len(hydrated["decisions"]) == len(default_state["decisions"])
+
+    # Clean up
+    StateStore.clear_persisted_state(filepath=test_file)
+    assert not os.path.exists(test_file)
+
+def test_session_status_endpoint():
+    status = get_session_status()
+    assert status["persisted"] is True
+    assert "project_name" in status
+    assert status["decisions_count"] >= 1
