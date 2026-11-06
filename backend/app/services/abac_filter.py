@@ -1,0 +1,83 @@
+"""
+Server-Side Attribute-Based Access Control (ABAC) Redaction Engine
+Enforces least-privilege security policies before JSON serialization.
+Redacts confidential HR, infrastructure keys, and proprietary tokens for junior successors.
+"""
+
+from typing import List, Dict, Any, Optional
+import re
+from ..models.schemas import HandoverWorkspace, DecisionNode, CitationSource, OrphanRiskFile
+
+class ABACFilter:
+    """
+    Attribute-Based Access Control (ABAC) Policy Enforcer.
+    Ensures restricted records are stripped server-side before client transmission.
+    """
+
+    REDACTION_CHIP = "[REDACTED BY PERMISSION POLICY: Tier-2 Clearance Required]"
+
+    # Sensitive token regexes
+    SECRET_PATTERNS = [
+        re.compile(r"sk_live_[a-zA-Z0-9_\-]+"),
+        re.compile(r"sec_salt_[a-zA-Z0-9_\-]+"),
+        re.compile(r"arn:aws:kms:[a-zA-Z0-9_\-:/]+"),
+        re.compile(r"\b(password|secret|apikey|token)\s*=\s*['\"][^'\"]+['\"]", re.IGNORECASE)
+    ]
+
+    @classmethod
+    def redact_text(cls, text: str) -> str:
+        """Replaces sensitive credential patterns with a redaction marker."""
+        redacted = text
+        for pattern in cls.SECRET_PATTERNS:
+            redacted = pattern.sub(cls.REDACTION_CHIP, redacted)
+        return redacted
+
+    @classmethod
+    def filter_workspace(cls, workspace: HandoverWorkspace, role: str) -> HandoverWorkspace:
+        """
+        Applies role-based filtering to a complete HandoverWorkspace.
+        If role is JUNIOR_SUCCESSOR, redacts confidential records and diffs.
+        """
+        normalized_role = role.upper()
+        if normalized_role in ["ADMIN", "LEAD", "SECURITY_OWNER"]:
+            # Full clearance: return unmodified
+            workspace.viewer_role = "ADMIN"
+            return workspace
+
+        # Apply Junior Successor restrictions
+        workspace.viewer_role = "JUNIOR_SUCCESSOR"
+
+        # 1. Filter Decisions & Citations
+        filtered_decisions = []
+        for dec in workspace.decisions:
+            dec_copy = dec.model_copy(deep=True)
+            filtered_citations = []
+            for cit in dec_copy.citations:
+                cit_copy = cit.model_copy(deep=True)
+                if cit_copy.security_tag in ["CONFIDENTIAL_HR", "CONFIDENTIAL_INFRA"]:
+                    cit_copy.snippet = cls.REDACTION_CHIP
+                    cit_copy.title = f"{cit_copy.title} (Redacted)"
+                else:
+                    cit_copy.snippet = cls.redact_text(cit_copy.snippet)
+                filtered_citations.append(cit_copy)
+
+            dec_copy.citations = filtered_citations
+            dec_copy.summary = cls.redact_text(dec_copy.summary)
+            dec_copy.rationale = cls.redact_text(dec_copy.rationale)
+            filtered_decisions.append(dec_copy)
+
+        workspace.decisions = filtered_decisions
+
+        # 2. Filter Orphan Risk Files
+        filtered_orphan_files = []
+        for orf in workspace.orphan_risk_files:
+            orf_copy = orf.model_copy(deep=True)
+            if "secrets" in orf_copy.file_path.lower():
+                orf_copy.risk_rationale = (
+                    "Sole owner of payment infrastructure credentials. "
+                    f"Credential values: {cls.REDACTION_CHIP}"
+                )
+            filtered_orphan_files.append(orf_copy)
+
+        workspace.orphan_risk_files = filtered_orphan_files
+        return workspace
