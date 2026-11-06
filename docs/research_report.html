@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reconstruct.ai — Round 1 Plan & Proposal | We Code Coders Hackathon</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    @page {
+      size: A4;
+      margin: 16mm 14mm 16mm 14mm;
+      @bottom-right {
+        content: counter(page);
+        font-family: 'Inter', sans-serif;
+        font-size: 8.5pt;
+        color: #64748b;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0f172a;
+      background-color: #ffffff;
+      line-height: 1.55;
+      font-size: 9.5pt;
+      -webkit-font-smoothing: antialiased;
+      padding: 28px 36px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .header-banner {
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+    }
+
+    .brand-tag {
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 4px;
+    }
+
+    .title {
+      font-size: 26pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      font-size: 12pt;
+      color: #2563eb;
+      margin-top: 5px;
+      font-weight: 600;
+    }
+
+    h1, h2 {
+      color: #0f172a;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: 13pt;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 5px;
+      margin-top: 22px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      font-size: 10.5pt;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+
+    p {
+      margin-bottom: 8px;
+      color: #334155;
+      text-align: justify;
+    }
+
+    ul, ol {
+      margin-left: 18px;
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin: 10px 0 14px 0;
+    }
+
+    th {
+      background: #0f172a;
+      color: #ffffff;
+      text-align: left;
+      padding: 7px 9px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    td {
+      padding: 6px 9px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #334155;
+      vertical-align: top;
+    }
+
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .callout {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin: 12px 0;
+      font-size: 8.5pt;
+      color: #334155;
+      line-height: 1.45;
+    }
+
+    img.diagram {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      margin: 10px 0 6px 0;
+    }
+
+    .caption {
+      text-align: center;
+      font-size: 8pt;
+      font-weight: 700;
+      color: #2563eb;
+      margin-bottom: 12px;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Cover Banner -->
+  <div class="header-banner">
+    <div class="brand-tag">We Code Coders Hackathon &bull; Round 1 Submission</div>
+    <div class="title">RECONSTRUCT.AI</div>
+    <div class="subtitle">Converting Scattered Project Activity into Verifiable Handover Intelligence</div>
+  </div>
+
+  <h2>Project purpose</h2>
+  <p>
+    Reconstruct.ai is a proposed handover-intelligence platform that gathers authorized project activity from code
+    repositories, team discussions, issue trackers and project documents. It organizes that evidence into a
+    time-aware, source-linked view of project decisions, unresolved work, ownership risks and next steps—so a
+    successor can continue work with less guesswork.
+  </p>
+
+  <table>
+    <tbody>
+      <tr>
+        <td style="width: 22%; background: #f1f5f9;"><strong>Team</strong></td>
+        <td>Reconstruct.ai</td>
+      </tr>
+      <tr>
+        <td style="background: #f1f5f9;"><strong>Institution</strong></td>
+        <td>JSPM’s Rajarshi Shahu College of Engineering (RSCOE), Pune</td>
+      </tr>
+      <tr>
+        <td style="background: #f1f5f9;"><strong>Team members</strong></td>
+        <td>Khushi Patil &bull; Dhruv Patil &bull; Yuvraj Kadam &bull; Nimisha Joshi</td>
+      </tr>
+      <tr>
+        <td style="background: #f1f5f9;"><strong>Repository</strong></td>
+        <td><a href="https://github.com/Dhruvplaz-web/reconstruct-ai" target="_blank">github.com/Dhruvplaz-web/reconstruct-ai</a></td>
+      </tr>
+      <tr>
+        <td style="background: #f1f5f9;"><strong>Submission stage</strong></td>
+        <td>Round 1 — Plan and proposal</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Official Submission Endorsement:</strong> This consolidated proposal is prepared and submitted by Team Reconstruct.ai
+    (JSPM RSCOE, Pune) for Round 1 of the We Code Coders Three-Round Challenge. All proposed workflows, data models,
+    and milestone commitments have been aligned directly with the hackathon's required core workflow and evaluation criteria.
+  </div>
+
+  <!-- Section 1 -->
+  <h1>1. Understanding of the Problem</h1>
+  <p>
+    Project teams accumulate knowledge across many places: source-code commits, pull requests, issue trackers,
+    chat discussions, design notes and individual working practices. A project handover becomes difficult when a
+    key contributor leaves, graduates, changes responsibilities or becomes unavailable. The next person may
+    inherit the code and task list but not the reasoning behind decisions, hidden dependencies, debugging steps,
+    operational warnings or the history of unresolved issues.
+  </p>
+  <p>
+    The core problem is therefore not simply a lack of documentation. It is the fragmentation of project context and
+    the difficulty of identifying which information is current, reliable, relevant and safe to share. Traditional
+    handover notes are often manually prepared and can become stale; search tools can retrieve information but
+    may not connect related events or clearly expose conflicting evidence.
+  </p>
+  <p>
+    Reconstruct.ai addresses this gap by converting authorized project traces into a structured, evidence-linked
+    handover workspace. It is designed to assist human handover—not to replace contributor judgement or
+    automatically declare every extracted statement true.
+  </p>
+
+  <h2>Problem dimensions</h2>
+  <ul>
+    <li><strong>Scattered context:</strong> important decisions and blockers are distributed across tools and conversations.</li>
+    <li><strong>Knowledge concentration:</strong> critical files or workflows may depend heavily on one contributor.</li>
+    <li><strong>Unclear project state:</strong> old discussions, current code and open tickets may not agree.</li>
+    <li><strong>Successor uncertainty:</strong> incoming contributors may not know what to inspect or whom to ask.</li>
+    <li><strong>Trust and privacy:</strong> handover material can contain confidential information that should not be visible to every role.</li>
+  </ul>
+
+  <h2>Scope boundary</h2>
+  <p>
+    The initial product focuses on software and project-team handovers, with GitHub/Git history and Slack-style
+    exported discussions as the first practical sources. Jira/Linear and document connectors are planned
+    extensions or optional inputs depending on time and access. The same approach may later support research
+    labs, student organizations and open-source communities, but these are expansion contexts rather than
+    separate MVP builds.
+  </p>
+
+  <!-- Section 2 -->
+  <h1>2. Affected Users</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">USER GROUP</th>
+        <th style="width: 38%;">NEED / PAIN POINT</th>
+        <th style="width: 40%;">VALUE FROM RECONSTRUCT.AI</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Departing contributor</strong></td>
+        <td>Needs a focused way to transfer critical context without writing a long manual handover.</td>
+        <td>Targeted questions based on detected ownership gaps and unresolved work; human review before sign-off.</td>
+      </tr>
+      <tr>
+        <td><strong>Incoming successor</strong></td>
+        <td>Needs to understand current architecture, decisions, risks and next actions.</td>
+        <td>Source-linked briefing, timeline, unresolved items and Day 1–30 task list.</td>
+      </tr>
+      <tr>
+        <td><strong>Team lead / project manager</strong></td>
+        <td>Needs visibility into handover completeness, dependencies and knowledge concentration.</td>
+        <td>Risk indicators, review status and a structured view of project continuity.</td>
+      </tr>
+      <tr>
+        <td><strong>Security / repository owner</strong></td>
+        <td>Needs to control which records and sensitive fields can be accessed.</td>
+        <td>Permission-aware ingestion and server-side access filtering, subject to policy configuration.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Section 3 -->
+  <h1>3. Proposed Solution</h1>
+  <p>
+    Reconstruct.ai is a multi-source handover reconstruction system. It collects project evidence that the team is
+    authorized to use, normalizes events into a common structure, links related decisions and artifacts over time,
+    highlights ownership concentration and unresolved questions, and presents the result as an interactive
+    continuation workspace.
+  </p>
+  <p>The platform is designed around five principles:</p>
+  <ul>
+    <li><strong>Evidence before assertion:</strong> every generated handover claim should link back to one or more source records.</li>
+    <li><strong>Time-aware context:</strong> the system should show when information was created or updated and avoid treating old notes as current without review.</li>
+    <li><strong>Uncertainty is visible:</strong> missing support and possible contradictions should be flagged for human inspection.</li>
+    <li><strong>Human confirmation:</strong> departing contributors and project leads can correct or approve important handover details.</li>
+    <li><strong>Least-privilege access:</strong> sensitive content is filtered on the server according to the viewer’s permissions.</li>
+  </ul>
+
+  <h2>Differentiation</h2>
+  <p>
+    The proposed distinction is the combination of repository ownership analysis, cross-source timeline
+    reconstruction, explicit evidence citations, uncertainty/contradiction review and successor-oriented tasks in
+    one workflow. Existing documentation, search and code-guide tools can each address parts of this problem;
+    Reconstruct.ai aims to connect those parts into a handover process. This is a product-positioning statement,
+    not a claim that other products lack all of these capabilities.
+  </p>
+
+  <!-- Section 4 -->
+  <h1>4. Complete Product Workflow</h1>
+  <img src="assets/workflow_pipeline.png" alt="5-Step Core Workflow Pipeline" class="diagram">
+  <div class="caption">Figure 1: Complete 5-Step Operational Handover Workflow</div>
+
+  <p><strong>1 — Connect:</strong> A manager selects the project and departing contributor, authorizes the data sources and chooses either connected sources or a prepared synthetic demo dataset.</p>
+  <p><strong>2 — Reconstruct:</strong> The ingestion service parses commits, pull requests, issue records and permitted discussion exports. It extracts candidate decisions, dependencies, blockers and ownership patterns. Git blame concentration is treated as a risk signal, not proof that a person is the only one who understands a module.</p>
+  <p><strong>3 — Verify:</strong> The system links each candidate statement to its supporting source and timestamp. Where two statements appear inconsistent, an NLI model may flag a possible conflict; the interface presents the original evidence for review rather than deciding factual truth automatically.</p>
+  <p><strong>4 — Review:</strong> The departing contributor or project lead reviews high-risk gaps and answers a small set of targeted questions. Corrections and approvals are recorded with their author and time.</p>
+  <p><strong>5 — Hand over:</strong> The platform applies role-based/attribute-based access rules and generates a continuation workspace with a project summary, evidence timeline, unresolved tasks and suggested first-month actions.</p>
+
+  <!-- Section 5 -->
+  <h1>5. Main Planned Features</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">FEATURE</th>
+        <th style="width: 45%;">PLANNED CAPABILITY</th>
+        <th style="width: 30%;">USER BENEFIT</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Multi-source ingestion</strong></td>
+        <td>Import repository history and authorized discussion/ticket exports; provide a synthetic demo path for evaluation.</td>
+        <td>Reduces manual collection and avoids requiring judges to connect personal accounts.</td>
+      </tr>
+      <tr>
+        <td><strong>Ownership concentration scan</strong></td>
+        <td>Analyze Git blame / commit history and flag files with high single-author contribution for review.</td>
+        <td>Helps teams identify modules that may need knowledge transfer.</td>
+      </tr>
+      <tr>
+        <td><strong>Temporal evidence graph</strong></td>
+        <td>Represent people, files, decisions, issues and events with timestamped, traceable relationships.</td>
+        <td>Shows how project context evolved and where a claim came from.</td>
+      </tr>
+      <tr>
+        <td><strong>Evidence-linked handover brief</strong></td>
+        <td>Generate structured summaries with source references and timestamps.</td>
+        <td>Lets successors inspect the original evidence instead of relying only on generated text.</td>
+      </tr>
+      <tr>
+        <td><strong>Uncertainty / conflict review</strong></td>
+        <td>Use NLI as a signal to identify potentially inconsistent statements; route uncertain items to review.</td>
+        <td>Makes disagreement visible and reduces silent merging of conflicting claims.</td>
+      </tr>
+      <tr>
+        <td><strong>Targeted leaver questions</strong></td>
+        <td>Generate a short set of questions from detected gaps, ownership concentration and unresolved items.</td>
+        <td>Focuses contributor effort on the most important missing context.</td>
+      </tr>
+      <tr>
+        <td><strong>Continuation workspace</strong></td>
+        <td>Show a project overview, timeline/graph, citations, unresolved work and Day 1–30 tasks.</td>
+        <td>Turns handover information into actionable next steps.</td>
+      </tr>
+      <tr>
+        <td><strong>Permission-aware view</strong></td>
+        <td>Apply server-side access policies and redact restricted fields before returning data.</td>
+        <td>Supports safer sharing across roles; requires security testing and policy review.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <img src="assets/platform_ui_wireframe.png" alt="Platform UI Wireframe" class="diagram">
+  <div class="caption">Figure 2: Reconstruct.ai Production Web Interface: 3-Column Continuation Hub, Role Switcher & Grounded Citations</div>
+
+  <!-- Section 6 -->
+  <h1>6. Proposed Technology Stack</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">LAYER</th>
+        <th style="width: 32%;">PROPOSED TECHNOLOGY</th>
+        <th style="width: 48%;">WHY IT FITS / IMPLEMENTATION NOTE</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Frontend</strong></td>
+        <td>Next.js 14, TypeScript, Tailwind CSS, Radix UI</td>
+        <td>Responsive dashboard, accessible dialogs/drawers and reusable UI.</td>
+      </tr>
+      <tr>
+        <td><strong>Backend API</strong></td>
+        <td>Python, FastAPI, Pydantic, Uvicorn</td>
+        <td>Python ecosystem supports repository parsing, NLP and graph processing; typed request/response schemas simplify API integration.</td>
+      </tr>
+      <tr>
+        <td><strong>Ingestion</strong></td>
+        <td>GitPython; GitHub API/PyGithub; JSON/Markdown parsers</td>
+        <td>Start with repository cloning/history and local exported files. Live OAuth connectors are optional extensions, not a Round 2 dependency.</td>
+      </tr>
+      <tr>
+        <td><strong>Graph / storage</strong></td>
+        <td>NetworkX; SQLite for MVP; PostgreSQL for later deployment</td>
+        <td>NetworkX is sufficient for a prototype graph. Start with a simple relational schema; add vector search only if required by tested workflows.</td>
+      </tr>
+      <tr>
+        <td><strong>AI / verification</strong></td>
+        <td>LLM-based structured extraction; Hugging Face DeBERTa-v3 NLI</td>
+        <td>LLM output must be schema-validated and citation-grounded. NLI is a possible-conflict classifier, not a truth detector.</td>
+      </tr>
+      <tr>
+        <td><strong>Security / testing</strong></td>
+        <td>Server-side ABAC policy checks; PyTest; frontend tests</td>
+        <td>Enforce least privilege before serialization; test access denial, redaction, secret handling and audit logging.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Section 7 -->
+  <h1>7. Team Responsibilities</h1>
+  <p>The responsibilities below consolidate the four individual contributor dossiers. Each member owns a primary area while integration and review remain shared responsibilities.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">MEMBER / ROLE</th>
+        <th style="width: 38%;">PRIMARY RESPONSIBILITIES</th>
+        <th style="width: 37%;">ROUND DELIVERABLES</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Khushi Patil</strong><br>Team Lead & Head of Research / Product Strategy</td>
+        <td>Problem validation, user taxonomy, research framing, competitor review, sprint planning, acceptance criteria, team coordination and submission compliance.</td>
+        <td>R1: problem dossier, scope, evaluation plan and role coordination.<br>R2: UAT scenarios, integration coordination and user feedback.<br>R3: final walkthrough, product review and accessibility/security coordination.</td>
+      </tr>
+      <tr>
+        <td><strong>Dhruv Patil</strong><br>AI Development & Core Engineering Lead</td>
+        <td>Structured extraction design, prompt schemas, decision/dependency extraction, grounding and NLI conflict-signalling pipeline, synthetic benchmark design.</td>
+        <td>R1: AI architecture, prompt/schema plan and benchmark specification.<br>R2: extraction, citation linker and NLI prototype.<br>R3: threshold evaluation, UI integration and hallucination guardrails.</td>
+      </tr>
+      <tr>
+        <td><strong>Yuvraj Kadam</strong><br>Lead Full-Stack Frontend & UI/UX Engineer</td>
+        <td>Next.js application, responsive layouts, continuation workspace, onboarding Kanban, citation sidecar, leaver review interface and accessibility.</td>
+        <td>R1: wireframes, component plan and design tokens.<br>R2: functional web client, demo interface and API integration.<br>R3: graph visualization, responsive polish and keyboard accessibility.</td>
+      </tr>
+      <tr>
+        <td><strong>Nimisha Joshi</strong><br>Systems Backend, Data Ingestion & Security Architect</td>
+        <td>FastAPI services, repository parsing, Git ownership analysis, multi-source ingestion schemas, provenance records and server-side ABAC/redaction.</td>
+        <td>R1: schemas, provenance model, ownership logic and policy design.<br>R2: backend, repo ingestion, discussion export parser and demo loader.<br>R3: automated tests, security review and approval-verification enhancement if feasible.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Shared responsibilities</h2>
+  <ul>
+    <li>All members participate in code review, integration testing, documentation and judge preparation.</li>
+    <li>The team lead coordinates scope and milestones; technical leads remain accountable for their owned subsystems.</li>
+    <li>The team will not describe planned features as completed until a working implementation and supporting evidence exist.</li>
+  </ul>
+
+  <!-- Section 8 -->
+  <h1>8. Three-Round Development Plan</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 18%;">ROUND</th>
+        <th style="width: 26%;">FOCUS</th>
+        <th style="width: 36%;">PLANNED DELIVERABLES</th>
+        <th style="width: 20%;">EXIT CHECK</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Round 1 — Plan</strong></td>
+        <td>Validate the problem, define MVP scope and design the architecture.</td>
+        <td>Consolidated proposal; workflow and architecture; initial data schema; wireframes; synthetic test scenario; team responsibilities.</td>
+        <td>All required proposal sections reviewed; scope and assumptions approved by team.</td>
+      </tr>
+      <tr>
+        <td><strong>Round 2 — Build</strong></td>
+        <td>Deliver a working end-to-end MVP using a controlled dataset.</td>
+        <td>Repo ingestion; ownership scan; structured extraction; evidence citations; basic timeline/workspace; targeted review questions; demo dataset.</td>
+        <td>A judge can load demo data and complete one handover flow end-to-end.</td>
+      </tr>
+      <tr>
+        <td><strong>Round 3 — Finish</strong></td>
+        <td>Improve reliability, usability, privacy and explainability.</td>
+        <td>Conflict/uncertainty indicators; role-aware access controls; tests; responsive/accessibility improvements; walkthrough video and limitation notes.</td>
+        <td>Demonstration is repeatable; core flows and access rules pass documented tests.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Section 9 -->
+  <h1>9. Expected Impact and Evaluation Metrics</h1>
+  <p>The project’s impact will be evaluated through a small pilot rather than presented as a guaranteed percentage improvement. The team will compare a baseline handover process with a Reconstruct.ai-assisted handover using the same sample project and successor tasks.</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">METRIC</th>
+        <th style="width: 45%;">HOW TO MEASURE</th>
+        <th style="width: 30%;">SUCCESS SIGNAL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Time to first meaningful task</strong></td>
+        <td>Measure elapsed time for a new contributor to identify and begin a predefined task using the baseline and the generated handover.</td>
+        <td>Lower time with no loss in task correctness.</td>
+      </tr>
+      <tr>
+        <td><strong>Handover completeness</strong></td>
+        <td>Use a checklist of required decisions, dependencies, open issues, ownership and operational notes; count items supported by evidence.</td>
+        <td>More checklist items are discoverable and source-linked.</td>
+      </tr>
+      <tr>
+        <td><strong>Ownership-risk coverage</strong></td>
+        <td>Compare manually identified critical files with files flagged by the ownership scan; inspect false positives and false negatives.</td>
+        <td>Useful risk flags with explainable ownership evidence.</td>
+      </tr>
+      <tr>
+        <td><strong>Evidence traceability</strong></td>
+        <td>Audit a sample of generated claims and verify that each opens the correct source record and timestamp.</td>
+        <td>Claims are reviewable and unsupported claims are clearly marked.</td>
+      </tr>
+      <tr>
+        <td><strong>Review effort</strong></td>
+        <td>Record time spent by the departing contributor reviewing and answering system-generated questions.</td>
+        <td>Less effort than preparing a full manual handover, without overstating a fixed time target.</td>
+      </tr>
+      <tr>
+        <td><strong>Privacy / access control</strong></td>
+        <td>Run role-based test cases for allowed and denied records; inspect logs and API responses for restricted fields.</td>
+        <td>No unauthorized disclosure in the defined test suite.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Impact statement</h2>
+  <p><strong>Expected impact:</strong> reduce avoidable context-search effort, make critical project knowledge easier to locate, surface ownership and continuity risks earlier, and provide successors with an actionable, evidence-linked starting point. The pilot will establish measured baselines before the team reports numerical improvement.</p>
+
+  <!-- Section 10 -->
+  <h1>10. Future Scope</h1>
+  <ul>
+    <li><strong>Additional integrations:</strong> GitLab, Jira/Linear, Discord and approved document repositories after the core GitHub/export workflow is stable.</li>
+    <li><strong>Continuous decision capture:</strong> optional bots or integrations that capture approved decisions as they occur, with explicit workspace consent and retention controls.</li>
+    <li><strong>Enterprise identity and policy:</strong> SSO, organization-managed roles, audit export and configurable retention policies.</li>
+    <li><strong>Private deployment:</strong> self-hosted inference and storage options for organizations with strict data residency requirements.</li>
+    <li><strong>Research and education workflows:</strong> adapt the evidence model for laboratory protocols, datasets, student clubs and open-source maintainer transitions.</li>
+  </ul>
+
+  <!-- Section 11 -->
+  <h1>11. Complete Team and Participant Details</h1>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">NAME</th>
+        <th style="width: 35%;">ROLE</th>
+        <th style="width: 25%;">INSTITUTION</th>
+        <th style="width: 20%;">EMAIL</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Khushi Patil</strong></td>
+        <td>Team Lead & Head of Research / Product Strategy</td>
+        <td>JSPM RSCOE, Pune</td>
+        <td>khushi@reconstruct.ai</td>
+      </tr>
+      <tr>
+        <td><strong>Dhruv Patil</strong></td>
+        <td>AI Development & Core Engineering Lead</td>
+        <td>JSPM RSCOE, Pune</td>
+        <td>dhruvpatil4555@gmail.com</td>
+      </tr>
+      <tr>
+        <td><strong>Yuvraj Kadam</strong></td>
+        <td>Lead Full-Stack Frontend & UI/UX Engineer</td>
+        <td>JSPM RSCOE, Pune</td>
+        <td>yuvraj@reconstruct.ai</td>
+      </tr>
+      <tr>
+        <td><strong>Nimisha Joshi</strong></td>
+        <td>Systems Backend, Data Ingestion & Security Architect</td>
+        <td>JSPM RSCOE, Pune</td>
+        <td>nimisha@reconstruct.ai</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Project repository:</strong> <a href="https://github.com/Dhruvplaz-web/reconstruct-ai" target="_blank">https://github.com/Dhruvplaz-web/reconstruct-ai</a></p>
+
+  <div class="callout">
+    <strong>Submission Verification:</strong> All participant identities, institution affiliations (JSPM RSCOE, Pune),
+    and primary roles have been verified and confirmed across all project records. The official code repository is
+    publicly accessible to the judges, and development will proceed strictly during the permitted hackathon build window.
+  </div>
+
+  <!-- Implementation Notes -->
+  <h1>Implementation Assumptions and Responsible-Use Notes</h1>
+  <p>To keep the proposal technically defensible, the following constraints apply to the design and evaluation:</p>
+  <ul>
+    <li><strong>Git blame concentration</strong> (for example, a high single-author share) is a heuristic risk indicator. It does not prove that the contributor is the only person with relevant knowledge or that the file is operationally critical.</li>
+    <li><strong>A temporal relationship</strong> between a chat message and a commit does not by itself prove causality. The graph should distinguish observed links from inferred links and show the evidence behind each inference.</li>
+    <li><strong>Natural Language Inference</strong> can classify pairs of text as potentially entailing, contradicting or being unrelated. It cannot establish which statement is factually correct; timestamps, source authority and human review remain necessary.</li>
+    <li><strong>A provenance model</strong> such as W3C PROV-DM records entities, activities, agents and derivation relationships. It does not, by itself, make records immutable or cryptographically tamper-proof.</li>
+    <li><strong>Access control</strong> must be enforced on the backend before data is serialized or returned. UI masking alone is not a security boundary. The implementation requires negative tests for restricted access and secret leakage.</li>
+    <li><strong>All AI-generated claims</strong> should include source references, be schema-validated and be marked uncertain when evidence is missing. The system must not invent missing handover details.</li>
+    <li><strong>The synthetic demo dataset</strong> must contain fictional project data and secrets, not real employee or organizational information.</li>
+  </ul>
+
+  <h2>Selected technical references</h2>
+  <ul>
+    <li><strong>W3C, PROV-DM: The PROV Data Model:</strong> <a href="https://www.w3.org/TR/prov-dm/" target="_blank">https://www.w3.org/TR/prov-dm/</a></li>
+    <li><strong>Nonaka, I. & Takeuchi, H., The Knowledge-Creating Company:</strong> Foundational reference for the SECI knowledge-creation model.</li>
+    <li><strong>Hugging Face model documentation for DeBERTa / NLI:</strong> Model selection and evaluation should be confirmed against the chosen checkpoint and task.</li>
+    <li><strong>IEEE Software / ACM Digital Library:</strong> Empirical studies on turnover vulnerabilities, knowledge concentration, and documentation maintenance in agile teams.</li>
+  </ul>
+
+  <div style="margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8pt; color: #64748b; text-align: center;">
+    <strong>End of Round 1 proposal &bull; Team Reconstruct.ai &bull; We Code Coders Three-Round Challenge</strong>
+  </div>
+
+</body>
+</html>
