@@ -18,7 +18,7 @@ class ABACFilter:
 
     # Sensitive token regexes
     SECRET_PATTERNS = [
-        re.compile(r"sk_live_[a-zA-Z0-9_\-]+"),
+        re.compile(r"sk_(?:live|test)_[a-zA-Z0-9_\-]+"),
         re.compile(r"sec_salt_[a-zA-Z0-9_\-]+"),
         re.compile(r"arn:aws:kms:[a-zA-Z0-9_\-:/]+"),
         re.compile(r"\b(password|secret|apikey|token)\s*=\s*['\"][^'\"]+['\"]", re.IGNORECASE)
