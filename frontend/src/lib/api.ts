@@ -1,6 +1,23 @@
 import { HandoverWorkspace, LeaverQuestion, LeaverReviewSubmission, DAGGraph } from "@/types";
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api";
+function resolveApiBase(): string {
+  let url = process.env.NEXT_PUBLIC_API_URL;
+  if (!url) {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return `${window.location.origin}/api`;
+    }
+    return "http://127.0.0.1:8000/api";
+  }
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  if (!url.endsWith("/api")) {
+    url = `${url.replace(/\/+$/, "")}/api`;
+  }
+  return url;
+}
+
+export const API_BASE = resolveApiBase();
 
 export async function fetchWorkspace(role: "JUNIOR_SUCCESSOR" | "ADMIN", signal?: AbortSignal): Promise<HandoverWorkspace> {
   try {
