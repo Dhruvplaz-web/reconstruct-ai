@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Compass, ArrowRight, Network, List, ExternalLink, Download } from "lucide-react";
+import {
+  Compass,
+  ArrowRight,
+  Network,
+  List,
+  ExternalLink,
+  Download,
+  Search
+} from "lucide-react";
 import { DAGGraph, DecisionNode, CommitEvent, DiscussionMessage } from "@/types";
 import { API_BASE } from "@/lib/api";
 import { DAGVisualizer } from "./DAGVisualizer";
@@ -100,6 +108,7 @@ interface DecisionTimelineProps {
   commits?: CommitEvent[];
   discussions?: DiscussionMessage[];
   onSelectCitation: (citationId: string) => void;
+  fullWidthMode?: boolean;
 }
 
 export function DecisionTimeline({
@@ -107,10 +116,11 @@ export function DecisionTimeline({
   decisions,
   commits,
   discussions,
-  onSelectCitation
+  onSelectCitation,
+  fullWidthMode = false
 }: DecisionTimelineProps) {
   const [filter, setFilter] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"list" | "graph">("list");
+  const [viewMode, setViewMode] = useState<"graph" | "list">(fullWidthMode ? "graph" : "list");
 
   // Dynamically derive events from live sources if provided, or fallback to default
   const events = useMemo<TimelineEvent[]>(() => {
@@ -118,7 +128,9 @@ export function DecisionTimeline({
 
     if (commits && commits.length > 0) {
       commits.forEach((c) => {
-        const isRevert = c.message.toLowerCase().includes("revert") || c.message.toLowerCase().includes("rollback");
+        const isRevert =
+          c.message.toLowerCase().includes("revert") ||
+          c.message.toLowerCase().includes("rollback");
         list.push({
           id: `ev-commit-${c.sha}`,
           type: "commit",
@@ -182,125 +194,149 @@ export function DecisionTimeline({
   );
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col h-full">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex flex-col h-full">
+      {/* Header bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
         <div>
-          <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-            <Compass className="w-4 h-4 text-blue-600" />
-            Temporal Decision DAG
-          </h2>
-          <p className="text-[11px] text-slate-500">W3C PROV-DM Lineage & React Flow</p>
+          <div className="flex items-center gap-2">
+            <Compass className="w-5 h-5 text-blue-600" />
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight">
+              Temporal Decision DAG & Lineage
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              W3C PROV-DM
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Ingested provenance DAG connecting Git rollbacks, Slack architectural debates, and ADRs.
+          </p>
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
-          <button
-            onClick={() => setViewMode("list")}
-            className={`flex items-center gap-1 px-2 py-1 rounded transition text-[11px] font-semibold ${
-              viewMode === "list" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
-            }`}
-          >
-            <List className="w-3 h-3" />
-            List
-          </button>
+        <div className="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs shrink-0">
           <button
             onClick={() => setViewMode("graph")}
-            className={`flex items-center gap-1 px-2 py-1 rounded transition text-[11px] font-semibold ${
-              viewMode === "graph" ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-900"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition text-xs font-semibold ${
+              viewMode === "graph"
+                ? "bg-white text-blue-600 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Network className="w-3 h-3" />
-            Interactive Graph
+            <Network className="w-3.5 h-3.5" />
+            <span>Interactive Graph</span>
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md transition text-xs font-semibold ${
+              viewMode === "list"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            <span>Timeline List ({filteredEvents.length})</span>
           </button>
         </div>
       </div>
 
+      {/* Main Content Area */}
       {viewMode === "graph" && graphData ? (
         <div className="pt-3">
           <DAGVisualizer
             nodes={graphData.nodes}
             edges={graphData.edges}
             onSelectCitation={onSelectCitation}
+            heightClass={fullWidthMode ? "h-[640px]" : "h-[540px]"}
           />
         </div>
       ) : (
-        <>
+        <div className="flex-1 flex flex-col pt-3">
           {/* Filter search */}
-          <div className="pt-3 pb-2">
+          <div className="relative pb-3">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter timeline (e.g. redis, alice)..."
-              className="w-full text-xs px-2.5 py-1.5 rounded-md border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 placeholder-slate-400 transition"
+              placeholder="Search timeline events by keyword, author, or technology (e.g. redis, alice)..."
+              className="w-full text-xs pl-8 pr-3 py-2 rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:border-blue-500 text-slate-800 placeholder-slate-400 transition"
             />
           </div>
 
           {/* Timeline item list */}
-          <div className="space-y-3 overflow-y-auto pr-1 flex-1 max-h-[720px]">
+          <div className="space-y-3 overflow-y-auto pr-1 flex-1 max-h-[640px]">
             {filteredEvents.map((event) => (
               <div
                 key={event.id}
                 onClick={() => event.citationId && onSelectCitation(event.citationId)}
-                className={`p-2.5 rounded-lg border text-xs transition cursor-pointer ${
+                className={`p-3.5 rounded-xl border text-xs transition cursor-pointer ${
                   event.hasConflict
-                    ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50"
-                    : "border-slate-100 bg-slate-50/60 hover:bg-slate-100/70"
+                    ? "border-amber-200 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300"
+                    : "border-slate-100 bg-slate-50/70 hover:bg-white hover:border-slate-300 hover:shadow-xs"
                 }`}
               >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className="text-[10px] text-slate-400 font-mono tabular-nums">{event.date}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5">
+                  <span className="text-[11px] text-slate-500 font-mono tabular-nums">
+                    {event.date}
+                  </span>
                   <span
-                    className={`text-[9px] font-semibold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                    className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
                       event.badge === "Git Rollback" || event.badge === "Reverted"
-                        ? "bg-rose-100 text-rose-700 font-bold"
+                        ? "bg-rose-100 text-rose-800 font-extrabold"
                         : event.badge === "Active Decision"
-                        ? "bg-blue-100 text-blue-700 font-bold"
+                        ? "bg-blue-100 text-blue-800 font-extrabold"
                         : event.badge.includes("Slack")
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-slate-200 text-slate-700"
+                        ? "bg-purple-100 text-purple-800"
+                        : "bg-slate-200 text-slate-800"
                     }`}
                   >
                     {event.badge}
                   </span>
                 </div>
 
-                <p className="font-medium text-slate-800 leading-snug">{event.title}</p>
+                <p className="font-semibold text-slate-900 leading-snug text-xs sm:text-[13px]">
+                  {event.title}
+                </p>
 
-                <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-200/50 text-[11px] text-slate-500">
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[11px] text-slate-500">
                   <span>
-                    Author: <strong className="text-slate-700">{event.author}</strong>
+                    Author: <strong className="text-slate-800">{event.author}</strong>
                   </span>
                   {event.citationId && (
-                    <span className="text-blue-600 font-medium flex items-center gap-0.5 hover:underline">
-                      View Source <ArrowRight className="w-3 h-3" />
+                    <span className="text-blue-600 font-semibold flex items-center gap-1 hover:underline">
+                      Inspect Grounded Diff <ArrowRight className="w-3 h-3" />
                     </span>
                   )}
                 </div>
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {/* Export W3C & ADR footer */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-        <a
-          href={`${API_BASE}/export/w3c-prov`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-blue-600 font-medium hover:underline flex items-center gap-0.5"
-        >
-          <Download className="w-2.5 h-2.5" /> Export W3C PROV-JSON
-        </a>
-        <a
-          href={`${API_BASE}/export/adr`}
-          target="_blank"
-          rel="noreferrer"
-          className="text-slate-600 font-medium hover:underline flex items-center gap-0.5"
-        >
-          <ExternalLink className="w-2.5 h-2.5" /> Export ADRs
-        </a>
+      <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+        <div className="flex items-center gap-4">
+          <a
+            href={`${API_BASE}/export/w3c-prov`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-blue-600 font-semibold hover:underline flex items-center gap-1"
+          >
+            <Download className="w-3 h-3" /> Export W3C PROV-JSON
+          </a>
+          <a
+            href={`${API_BASE}/export/adr`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-slate-700 font-semibold hover:underline flex items-center gap-1"
+          >
+            <ExternalLink className="w-3 h-3" /> Export Architecture ADRs
+          </a>
+        </div>
+        <span className="text-[11px] text-slate-400">
+          W3C PROV-DM 2.0 Compliant
+        </span>
       </div>
     </div>
   );
